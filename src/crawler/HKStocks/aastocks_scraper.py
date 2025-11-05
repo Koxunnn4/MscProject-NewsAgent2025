@@ -12,8 +12,7 @@ from .models import HKStockNews
 from .utils import (
     parse_chinese_date,
     normalize_url,
-    is_within_days,
-    generate_message_id
+    is_within_days
 )
 
 
@@ -370,7 +369,7 @@ class AaStocksScraper:
 
     def save_to_database(self, news_list: List[HKStockNews], db_manager=None) -> int:
         """
-        保存新闻到数据库（带URL+标题去重）
+        保存新闻到hkstocks_news表（按URL去重）
 
         Args:
             news_list: 新闻对象列表
@@ -392,45 +391,75 @@ class AaStocksScraper:
                 print("错误: 无法导入数据库管理器")
                 return 0
 
+        # 确保hkstocks_news表已创建
+        try:
+            from src.database.schema import (
+                CREATE_HKSTOCKS_NEWS_TABLE,
+                CREATE_HKSTOCKS_URL_INDEX,
+                CREATE_HKSTOCKS_DATE_INDEX
+            )
+
+            db_manager.execute_update(CREATE_HKSTOCKS_NEWS_TABLE, (), db_manager.history_db_path)
+            db_manager.execute_update(CREATE_HKSTOCKS_URL_INDEX, (), db_manager.history_db_path)
+            db_manager.execute_update(CREATE_HKSTOCKS_DATE_INDEX, (), db_manager.history_db_path)
+        except Exception as e:
+            print(f"创建表失败: {e}")
+
         saved_count = 0
         duplicate_count = 0
+        updated_count = 0
 
         for news in news_list:
             try:
-                # 检查是否已存在（URL + 标题去重）
+                # 检查URL是否已存在
                 check_query = """
-                    SELECT id FROM messages
-                    WHERE channel_id = 'aastocks'
-                    AND (message_id = ? OR text LIKE ?)
+                    SELECT id, content FROM hkstocks_news
+                    WHERE url = ?
                 """
-                message_id = generate_message_id(news.url, news.title)
-                title_pattern = f"%【{news.title}】%"
 
                 result = db_manager.execute_query(
                     check_query,
-                    (message_id, title_pattern),
+                    (news.url,),
                     db_manager.history_db_path
                 )
 
                 if result:
-                    duplicate_count += 1
-                    print(f"  - 跳过重复新闻: {news.title[:50]}...")
+                    # 如果已存在，检查内容是否有更新
+                    existing_id, existing_content = result[0]
+                    if len(news.content) > len(existing_content):
+                        # 更新内容（如果新内容更长）
+                        update_query = """
+                            UPDATE hkstocks_news
+                            SET content = ?, updated_at = datetime('now')
+                            WHERE id = ?
+                        """
+                        db_manager.execute_update(
+                            update_query,
+                            (news.content, existing_id),
+                            db_manager.history_db_path
+                        )
+                        updated_count += 1
+                        print(f"  ↻ 更新新闻: {news.title[:50]}...")
+                    else:
+                        duplicate_count += 1
+                        print(f"  - 跳过重复新闻: {news.title[:50]}...")
                     continue
 
                 # 插入新闻
                 insert_query = """
-                    INSERT INTO messages (channel_id, message_id, text, date)
-                    VALUES (?, ?, ?, ?)
+                    INSERT INTO hkstocks_news (title, url, content, publish_date, source, category)
+                    VALUES (?, ?, ?, ?, ?, ?)
                 """
-                news_dict = news.to_dict()
 
                 db_manager.execute_update(
                     insert_query,
                     (
-                        news_dict['channel_id'],
-                        news_dict['message_id'],
-                        news_dict['text'],
-                        news_dict['date']
+                        news.title,
+                        news.url,
+                        news.content,
+                        news.publish_date.isoformat(),
+                        news.source,
+                        news.category
                     ),
                     db_manager.history_db_path
                 )
@@ -442,7 +471,7 @@ class AaStocksScraper:
                 print(f"保存新闻失败 [{news.title[:30]}...]: {e}")
                 continue
 
-        print(f"\n保存完成: 新增 {saved_count} 条，跳过重复 {duplicate_count} 条")
+        print(f"\n保存完成: 新增 {saved_count} 条，更新 {updated_count} 条，跳过重复 {duplicate_count} 条")
         return saved_count
 
 
