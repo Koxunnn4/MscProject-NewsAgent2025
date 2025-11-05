@@ -32,5 +32,10 @@ python-telegram-bot>=20.0
 tqdm>=4.65.0
 python-dateutil>=2.8.0
 
+# Web scraping (for HKStocks crawler)
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
+requests>=2.31.0
+
 # Testing (optional)
 pytest>=7.0.0
