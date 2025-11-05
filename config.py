@@ -13,7 +13,7 @@ DATABASE_PATH = os.path.join(DATA_DIR, 'news_analysis.db')  # 主数据库
 HISTORY_DB_PATH = os.path.join(PROJECT_ROOT, 'testdb_history.db')  # 历史数据
 
 # 关键词提取配置
-KEYBERT_MODEL = 'all-MiniLM-L6-v2'
+KEYBERT_MODEL = "paraphrase-multilingual-MiniLM-L12-v2"
 TOP_N_KEYWORDS = 10
 KEYWORD_NGRAM_RANGE = (1, 2)
 

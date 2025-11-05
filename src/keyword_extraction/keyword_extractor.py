@@ -8,6 +8,8 @@ from typing import List, Tuple, Dict
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.feature_extraction.text import CountVectorizer
+import jieba
+import re
 
 # 添加项目根目录到路径
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -35,6 +37,7 @@ class KeywordExtractor:
         """
         self.model_name = model_name or KEYBERT_MODEL
         self.model = None
+        self.stopwords = set()
 
         if KEYBERT_AVAILABLE:
             try:
@@ -63,15 +66,18 @@ class KeywordExtractor:
         if not text or len(text.strip()) == 0:
             return []
 
+        self._load_stopwords()
+        vectorizer = CountVectorizer(tokenizer=self.tokenize_and_filter)
+
         top_n = top_n or TOP_N_KEYWORDS
 
         try:
             keywords = self.model.extract_keywords(
                 text,
-                keyphrase_ngram_range=KEYWORD_NGRAM_RANGE,
+                vectorizer=vectorizer,
+                keyphrase_ngram_range=(1, 3),
                 top_n=top_n,
-                use_maxsum=True,
-                diversity=0.7
+                diversity=0.3
             )
             return keywords if keywords else []
         except Exception as e:
@@ -94,6 +100,47 @@ class KeywordExtractor:
             keywords = self.extract_keywords(text, top_n)
             results.append(keywords)
         return results
+
+    def _load_stopwords(self, path: str = "stopwords.txt"):
+        """加载停用词"""
+        if not self.stopwords:
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    self.stopwords = set(line.strip() for line in f if line.strip())
+            except Exception as e:
+                print(f"停用词加载失败: {e}")
+                self.stopwords = set()
+
+    def tokenize_and_filter(self, text):
+        """分词+过滤"""
+        tokens = jieba.lcut(text)
+        # 去除停用词
+        tokens = [tok for tok in tokens if tok not in self.stopwords]
+        # 过滤规则
+        allowed_pattern = re.compile(r'^[A-Za-z0-9\u4e00-\u9fff]+$')
+
+        def is_valid_keyword(w):
+            if not w:
+                return False
+            w = w.strip()
+            # 只要一个汉字
+            if re.fullmatch(r'[\u4e00-\u9fff]', w):
+                return False
+            # 只要一个英文字母
+            if re.fullmatch(r'[A-Za-z]', w):
+                return False
+            # 除表示年份的数字，其他纯数字不通过
+            if re.fullmatch(r'\d+', w):
+                if not (1950 <= int(w) <= 2050):
+                    return False
+            # 特殊字符
+            if not allowed_pattern.match(w):
+                return False
+            return True
+
+        filtered_tokens = [tok.strip() for tok in tokens if is_valid_keyword(tok)]
+        return filtered_tokens
+
 
     def calculate_relevance(self, user_keyword: str, news_keywords: List[str],
                           news_weights: List[float]) -> float:
@@ -188,7 +235,7 @@ if __name__ == "__main__":
     分析师认为这与美联储降息预期有关，投资者情绪乐观。
     """
 
-    keywords = extractor.extract_keywords(test_text, top_n=5)
+    keywords = extractor.extract_keywords(test_text)
     print("提取的关键词:")
     for kw, weight in keywords:
         print(f"  {kw}: {weight:.4f}")
