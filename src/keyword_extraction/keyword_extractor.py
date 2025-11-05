@@ -1,5 +1,6 @@
 """
 关键词提取模块
+test git
 """
 import os
 import sys
@@ -24,17 +25,17 @@ except ImportError:
 
 class KeywordExtractor:
     """关键词提取器"""
-    
+
     def __init__(self, model_name: str = None):
         """
         初始化关键词提取器
-        
+
         Args:
             model_name: KeyBERT 模型名称
         """
         self.model_name = model_name or KEYBERT_MODEL
         self.model = None
-        
+
         if KEYBERT_AVAILABLE:
             try:
                 print(f"正在加载 KeyBERT 模型: {self.model_name}...")
@@ -44,26 +45,26 @@ class KeywordExtractor:
             except Exception as e:
                 print(f"❌ KeyBERT 模型加载失败: {e}")
                 self.model = None
-    
+
     def extract_keywords(self, text: str, top_n: int = None) -> List[Tuple[str, float]]:
         """
         提取文本关键词
-        
+
         Args:
             text: 输入文本
             top_n: 返回前N个关键词
-            
+
         Returns:
             [(keyword, weight), ...] 关键词和权重列表
         """
         if not self.model:
             return []
-        
+
         if not text or len(text.strip()) == 0:
             return []
-        
+
         top_n = top_n or TOP_N_KEYWORDS
-        
+
         try:
             keywords = self.model.extract_keywords(
                 text,
@@ -76,15 +77,15 @@ class KeywordExtractor:
         except Exception as e:
             print(f"关键词提取失败: {e}")
             return []
-    
+
     def extract_keywords_batch(self, texts: List[str], top_n: int = None) -> List[List[Tuple[str, float]]]:
         """
         批量提取关键词
-        
+
         Args:
             texts: 文本列表
             top_n: 每个文本返回前N个关键词
-            
+
         Returns:
             关键词列表的列表
         """
@@ -93,58 +94,58 @@ class KeywordExtractor:
             keywords = self.extract_keywords(text, top_n)
             results.append(keywords)
         return results
-    
+
     def calculate_relevance(self, user_keyword: str, news_keywords: List[str],
                           news_weights: List[float]) -> float:
         """
         计算用户关键词与新闻关键词的相关性
-        
+
         Args:
             user_keyword: 用户输入的关键词
             news_keywords: 新闻的关键词列表
             news_weights: 新闻关键词的权重列表
-            
+
         Returns:
             相关性得分
         """
         if not news_keywords:
             return 0.0
-        
+
         try:
             # 使用词袋模型计算余弦相似度
             all_keywords = [user_keyword] + news_keywords
             vectorizer = CountVectorizer().fit(all_keywords)
             user_vector = vectorizer.transform([user_keyword]).toarray()
             news_vector = vectorizer.transform([' '.join(news_keywords)]).toarray()
-            
+
             # 余弦相似度
             similarity = cosine_similarity(user_vector, news_vector)[0][0]
-            
+
             # 计算关键词匹配加权
             weight_sum = sum(
                 news_weights[i] for i, kw in enumerate(news_keywords)
                 if user_keyword.lower() in kw.lower()
             )
-            
+
             # 综合得分
             relevance = similarity * (1 + weight_sum)
             return relevance
-            
+
         except Exception as e:
             print(f"相关性计算失败: {e}")
             return 0.0
-    
-    def get_top_relevant_news(self, user_keyword: str, 
+
+    def get_top_relevant_news(self, user_keyword: str,
                              news_list: List[Dict],
                              top_k: int = 10) -> List[Dict]:
         """
         获取与用户关键词最相关的新闻
-        
+
         Args:
             user_keyword: 用户关键词
             news_list: 新闻列表，每个新闻包含 keywords 和 weights
             top_k: 返回前K条
-            
+
         Returns:
             相关性最高的新闻列表
         """
@@ -158,12 +159,12 @@ class KeywordExtractor:
                 )
             else:
                 news['relevance_score'] = 0.0
-        
+
         # 按相关性排序
-        sorted_news = sorted(news_list, 
+        sorted_news = sorted(news_list,
                            key=lambda x: (x.get('relevance_score', 0), x.get('date', '')),
                            reverse=True)
-        
+
         return sorted_news[:top_k]
 
 
@@ -181,12 +182,12 @@ def get_keyword_extractor() -> KeywordExtractor:
 if __name__ == "__main__":
     # 测试
     extractor = get_keyword_extractor()
-    
+
     test_text = """
     比特币价格今日突破 $65,000，创下近期新高。
     分析师认为这与美联储降息预期有关，投资者情绪乐观。
     """
-    
+
     keywords = extractor.extract_keywords(test_text, top_n=5)
     print("提取的关键词:")
     for kw, weight in keywords:
