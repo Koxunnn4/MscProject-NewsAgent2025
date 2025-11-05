@@ -188,6 +188,118 @@ class CryptoAnalyzer:
                     break
         return list(mentioned_coins)
 
+    def fetch_column_data(self, db_path, table, column):
+        """从数据库读取指定列的所有数据"""
+        conn = sqlite3.connect(db_path)
+        try:
+            cur = conn.cursor()
+            cur.execute(f"SELECT {column} FROM {table} WHERE {column} IS NOT NULL")
+            rows = cur.fetchall()
+        finally:
+            conn.close()
+        return rows
+
+    def calculate_relevance(self, db_path: str, table: str = "messages"):
+        """
+        读取数据库中表的 `keywords` 列，统计出现次数大于55次的关键词，并计算这些高频关键词两两之间的相似度并按相似度降序打印。
+
+        Args:
+            db_path: 数据库路径
+            table: 表名（默认 messages）
+        """
+        # 1. 读取 keywords 列
+        try:
+            rows = self.fetch_column_data(db_path, table, 'keywords')
+        except Exception as e:
+            print(f"读取数据库失败: {e}")
+            return []
+
+        # 2. 统计关键词出现次数（keywords 字段以逗号分隔）
+        item_counter = Counter()
+        occurrence_counter = Counter()
+        total_rows = len(rows)
+
+        for (item_str,) in rows:
+            if not item_str:
+                continue
+            parts = [p.strip() for p in SPLIT_RE.split(item_str) if p and p.strip()]
+            # 统一小写以统计英文不区分大小写
+            parts_lower = [p.lower() for p in parts]
+            item_counter.update(parts_lower)
+            unique_parts = set(parts_lower)
+            occurrence_counter.update(unique_parts)
+
+        # 3. 过滤出出现次数 > 5 的关键词
+        MIN_COUNT = 5
+        terms = [t for t, c in item_counter.items() if c > MIN_COUNT]
+        print(f"总关键词种类: {len(item_counter)}; 筛选出出现次数 > {MIN_COUNT} 的关键词数量: {len(terms)}")
+
+        if len(terms) < 2:
+            print("高频关键词数量不足，无法计算相似度")
+            return []
+
+        # 4. 使用 spaCy 计算向量相似度，先确保 self.nlp 已加载并关键词有向量
+        if not self.nlp:
+            print("spaCy 模型未加载，无法计算向量相似度")
+            return []
+
+        term_docs = {}
+        skipped = []
+        for t in terms:
+            try:
+                doc = self.nlp(t)
+            except Exception:
+                skipped.append(t)
+                continue
+            if hasattr(doc, 'vector_norm') and getattr(doc, 'vector_norm', 0) > 0:
+                term_docs[t] = doc
+            else:
+                skipped.append(t)
+
+        print(f"可用于相似度计算的关键词数: {len(term_docs)}")
+        if skipped:
+            print(f"跳过无向量或无法解析的关键词: {len(skipped)} 示例: {skipped[:10]}")
+
+        if len(term_docs) < 2:
+            print("有效向量关键词不足，无法计算相似度")
+            return []
+
+        # 5. 计算两两相似度
+        pairs = []
+        keys = list(term_docs.keys())
+        total_pairs = len(keys) * (len(keys) - 1) // 2
+        print(f"开始计算 {total_pairs} 对相似度...")
+
+        for a, b in itertools.combinations(keys, 2):
+            try:
+                sim = float(term_docs[a].similarity(term_docs[b]))
+            except Exception:
+                # 兼容性保护：直接计算余弦相似（如果 vector 存在）
+                va = getattr(term_docs[a], 'vector', None)
+                vb = getattr(term_docs[b], 'vector', None)
+                if va is None or vb is None:
+                    sim = 0.0
+                else:
+                    # numpy 数组
+                    try:
+                        sim = float(np.dot(va, vb) / (np.linalg.norm(va) * np.linalg.norm(vb)))
+                    except Exception:
+                        sim = 0.0
+            pairs.append((a, item_counter[a], b, item_counter[b], sim))
+
+        # 6. 按相似度降序排序并打印
+        pairs.sort(key=lambda x: x[4], reverse=True)
+
+        print(f"按相似度降序输出，共 {len(pairs)} 对（示例前100）:")
+        print('-' * 80)
+        for i, (a, ca, b, cb, s) in enumerate(pairs[:100], 1):
+            print(f"{i:>4} | {a}({ca}) — {b}({cb}) : {s:.4f}")
+
+        return pairs
+
+    def get_top_relevant_news():
+        pass
+
 
 
 # 单例模式
@@ -202,16 +314,10 @@ def get_crypto_analyzer() -> CryptoAnalyzer:
 
 
 if __name__ == "__main__":
-    # DB_PATH = r"E:\msc_proj\MscProject-NewsAgent2025\src\crawler\crpyto_news\history.db"
-    # TABLE = "messages"
-    # KEYWORD_COLUMN = "keywords"
-    # # 测试
-    # extractor = get_crypto_analyzer()
-    # nlp = extractor.load_spacy_similarity_model()
-    # keyword_rows = extractor.fetch_column_data(DB_PATH, TABLE, KEYWORD_COLUMN)
-    # keyword_counter, keyword_occurrence = extractor.count_items_with_occurrence(keyword_rows, case_insensitive=True)
-    # # 测试 calculate_similarity
-    # pairs = extractor.calculate_similarity(nlp, keyword_counter)
+    pass
+
+    # 测试
+    extractor = get_crypto_analyzer()
 
     # test_text = """
     # **“胜率100%巨鲸”凌晨加仓173.6枚BTC，总持仓价值超2.96亿美元** 10月26日，据链上分析师Ai姨（@ai_9684xtpa）监测，胜率100%的巨鲸在今日凌晨加仓173.6枚BTC。该巨鲸当前BTC多单持仓达1,482.9枚，价值1.65亿美元，开仓价为110,680.1美元。 此外，该巨鲸还持有33,270.78枚ETH多单，价值1.32亿美元，开仓价为3,897.59美元。其整体仓位超过2.96亿美元，目前浮盈270万美元。

@@ -5,7 +5,7 @@
 
 功能:
 1. 统计 keywords 列中关键词出现次数
-2. 统计 currency 列中币种出现次数
+2. 统计 industry 列中币种出现次数
 3. 计算高频关键词(出现次数≥5)之间的相似度并降序排列
 
 用法:
@@ -19,10 +19,10 @@ import spacy
 from collections import Counter
 
 # ======= 配置参数 =======
-DB_PATH = r"E:\msc_proj\web3_news_agent_keywords_currency\data\history.db"
+DB_PATH = r"E:\msc_proj\MscProject-NewsAgent2025\src\crawler\crpyto_news\history.db"
 TABLE = "messages"
 KEYWORD_COLUMN = "keywords"
-CURRENCY_COLUMN = "currency"
+CURRENCY_COLUMN = "industry"
 MIN_COUNT = 5  # 相似度计算的最小词频阈值
 TOP_N = 100  # 打印前 N 对相似度结果
 

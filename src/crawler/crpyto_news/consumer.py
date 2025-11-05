@@ -28,6 +28,7 @@ class NewsConsumer:
         # 新增:连接数据库
         self.conn = sqlite3.connect(db_path)
         self.cursor = self.conn.cursor()
+        self.db_path = db_path
         # 新增:创建表(如不存在)
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS messages (
@@ -223,6 +224,8 @@ class NewsConsumer:
         messages = self.redis_client.lrange(self.list_key, 0, -1)
         for message in messages:
             await self.process_message(message)
+        # 运行分析
+        await self.analyzer.run_analysis(self.db_path)
 
     async def run_stream_mode(self):
         """实时模式：持续监听新消息"""
