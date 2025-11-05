@@ -14,8 +14,8 @@ sys.path.insert(0, PROJECT_ROOT)
 
 from config import API_HOST, API_PORT, API_DEBUG
 from src.database.db_manager import get_db_manager
-from src.keyword_extraction.keyword_extractor import get_keyword_extractor
-from src.keyword_extraction.summarizer import get_summarizer
+from src.crypto_analysis.keyword_extractor import get_keyword_extractor
+from src.crypto_analysis.summarizer import get_summarizer
 from src.trend_analysis.trend_analyzer import get_trend_analyzer
 from src.push_system.push_manager import get_push_manager
 from src.utils.helpers import format_date, get_date_range
@@ -55,12 +55,12 @@ def search_news():
     """
     keyword = request.args.get('keyword', '')
     limit = int(request.args.get('limit', 10))
-    
+
     if not keyword:
         return jsonify({'error': '请提供关键词'}), 400
-    
+
     news_list = db.get_news_by_keyword(keyword, limit)
-    
+
     return jsonify({
         'keyword': keyword,
         'count': len(news_list),
@@ -75,16 +75,16 @@ def get_news_detail(news_id):
     """
     query = "SELECT * FROM messages WHERE id = ?"
     results = db.execute_query(query, (news_id,), db.history_db_path)
-    
+
     if not results:
         return jsonify({'error': '新闻不存在'}), 404
-    
+
     news = results[0]
-    
+
     # 获取关键词
     keywords = db.get_news_keywords(news_id)
     news['keywords'] = keywords
-    
+
     return jsonify(news)
 
 
@@ -98,27 +98,27 @@ def get_top_news_by_keyword():
     """
     keyword = request.args.get('keyword', '')
     k = int(request.args.get('k', 10))
-    
+
     if not keyword:
         return jsonify({'error': '请提供关键词'}), 400
-    
+
     # 获取所有新闻并提取关键词
     query = "SELECT id, text, date FROM messages"
     news_list = db.execute_query(query, db_path=db.history_db_path)
-    
+
     # 为每条新闻提取关键词
     for news in news_list:
         keywords = extractor.extract_keywords(news['text'], top_n=5)
         news['keywords'] = [kw for kw, weight in keywords]
         news['weights'] = [weight for kw, weight in keywords]
-    
+
     # 获取相关性最高的新闻
     top_news = extractor.get_top_relevant_news(keyword, news_list, top_k=k)
-    
+
     # 生成摘要
     for news in top_news:
         news['summary'] = summarizer.generate_summary(news['text'])
-    
+
     return jsonify({
         'keyword': keyword,
         'count': len(top_news),
@@ -142,14 +142,14 @@ def get_keyword_trend():
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
     granularity = request.args.get('granularity', 'day')
-    
+
     if not keyword:
         return jsonify({'error': '请提供关键词'}), 400
-    
+
     trend = analyzer.analyze_keyword_trend(
         keyword, start_date, end_date, granularity
     )
-    
+
     return jsonify(trend)
 
 
@@ -165,16 +165,16 @@ def compare_keywords():
         }
     """
     data = request.get_json()
-    
+
     if not data or 'keywords' not in data:
         return jsonify({'error': '请提供关键词列表'}), 400
-    
+
     keywords = data['keywords']
     start_date = data.get('start_date')
     end_date = data.get('end_date')
-    
+
     comparison = analyzer.compare_keywords(keywords, start_date, end_date)
-    
+
     return jsonify(comparison)
 
 
@@ -188,12 +188,12 @@ def get_hot_dates():
     """
     keyword = request.args.get('keyword', '')
     top_n = int(request.args.get('top_n', 10))
-    
+
     if not keyword:
         return jsonify({'error': '请提供关键词'}), 400
-    
+
     hot_dates = analyzer.get_hot_dates(keyword, top_n)
-    
+
     return jsonify({
         'keyword': keyword,
         'data': hot_dates
@@ -212,14 +212,14 @@ def visualize_trend():
     keyword = request.args.get('keyword', '')
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
-    
+
     if not keyword:
         return jsonify({'error': '请提供关键词'}), 400
-    
+
     # 生成图表并保存
     save_path = f"data/trend_{keyword}.png"
     result = analyzer.visualize_trend(keyword, start_date, end_date, save_path)
-    
+
     if result:
         return jsonify({
             'success': True,
@@ -246,16 +246,16 @@ def subscribe():
         }
     """
     data = request.get_json()
-    
+
     if not data or 'user_id' not in data or 'keyword' not in data:
         return jsonify({'error': '请提供用户ID和关键词'}), 400
-    
+
     result = push_manager.subscribe(
         data['user_id'],
         data['keyword'],
         data.get('telegram_chat_id')
     )
-    
+
     return jsonify(result)
 
 
@@ -270,7 +270,7 @@ def unsubscribe(subscription_id):
 def get_subscriptions(user_id):
     """获取用户订阅列表"""
     subscriptions = push_manager.get_user_subscriptions(user_id)
-    
+
     return jsonify({
         'user_id': user_id,
         'count': len(subscriptions),
@@ -286,18 +286,18 @@ def get_overview_stats():
     # 统计新闻总数
     query = "SELECT COUNT(*) as count FROM messages"
     news_count = db.execute_query(query, db_path=db.history_db_path)[0]['count']
-    
+
     # 统计日期范围
     query = "SELECT MIN(date) as min_date, MAX(date) as max_date FROM messages"
     date_range = db.execute_query(query, db_path=db.history_db_path)[0]
-    
+
     # 统计订阅数
     query = "SELECT COUNT(*) as count FROM subscriptions WHERE is_active = 1"
     try:
         sub_count = db.execute_query(query)[0]['count']
     except:
         sub_count = 0
-    
+
     return jsonify({
         'total_news': news_count,
         'date_range': {
@@ -330,7 +330,7 @@ if __name__ == '__main__':
     print(f"  文档: http://{API_HOST}:{API_PORT}/api/health")
     print("=" * 70)
     print()
-    
+
     app.run(
         host=API_HOST,
         port=API_PORT,
