@@ -14,6 +14,7 @@ import spacy
 from spacy.matcher import PhraseMatcher
 import json
 import sqlite3
+from collections import Counter
 
 # 添加项目根目录到路径
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -29,7 +30,7 @@ except ImportError:
     print("⚠️  KeyBERT 未安装，请运行: pip install keybert sentence-transformers")
 
 
-class KeywordExtractor:
+class CryptoAnalyzer:
     def __init__(self, model_name: str = None):
         self.model_name = model_name or KEYBERT_MODEL
         self.model = None
@@ -54,7 +55,6 @@ class KeywordExtractor:
         # 构建币种匹配器
         if self.nlp:
             self.matcher = self._build_matcher()
-
 
     def _load_stopwords(self, path: str = "stopwords.txt"):
         if not self.stopwords:
@@ -83,14 +83,16 @@ class KeywordExtractor:
         print(f"识别到合规实体: {entities}")
         return list(entities)
 
-    def extract_keywords(self, text: str, top_n: int = None) -> List[Tuple[str, float]]:
+    def extract_keywords(self, text: str, top_n: int = 10) -> List[Tuple[str, float]]:
         if not self.model or not text or len(text.strip()) == 0:
             return []
 
         self._load_stopwords()
-        vectorizer = CountVectorizer(tokenizer=self.tokenize_and_filter)
+        # 指定 token_pattern=None 可以避免 sklearn 关于 token_pattern 被忽略的警告
+        vectorizer = CountVectorizer(tokenizer=self.tokenize_and_filter, token_pattern=None)
         top_n = top_n or TOP_N_KEYWORDS
 
+        kw_results: List[Tuple[str, float]] = []
         try:
             kw_results = self.model.extract_keywords(
                 text,
@@ -99,25 +101,22 @@ class KeywordExtractor:
                 top_n=top_n,
                 diversity=0.3
             )
-            kw_list = [kw[0] for kw in kw_results]
         except Exception as e:
+            # 常见错误：empty vocabulary（文档可能全是停用词）等
             print(f"关键词提取失败: {e}")
-            kw_list = []
-
-        # # 获取spaCy实体关键词
-        # ner_keywords = self.spacy_ner_keywords(text)
-
-
-        # # 合并并去重，给KeyBERT的权重保留，NER实体赋默认权重0.9，保证优先级
-        # combined_dict = {kw: score for kw, score in kw_results}
-        # for ent in ner_keywords:
-        #     if ent not in combined_dict:
-        #         combined_dict[ent] = 0.1
-        #     else:
-        #         combined_dict[ent] += 0.1
-
-        # 根据权重排序，取top_n
-        # kw_results = sorted(combined_dict.items(), key=lambda x: x[1], reverse=True)[:top_n]
+            # 作为后备：使用分词 + 词频统计提取关键词，避免抛出未定义变量错误
+            try:
+                tokens = self.tokenize_and_filter(text)
+                if not tokens:
+                    # 无有效词（可能全为停用词），返回空列表
+                    return []
+                cnt = Counter(tokens)
+                total = sum(cnt.values()) or 1
+                # 以词频归一化作为权重
+                kw_results = [(tok, cnt[tok] / total) for tok, _ in cnt.most_common(top_n)]
+            except Exception as e2:
+                print(f"后备关键词提取失败: {e2}")
+                return []
 
         return kw_results
 
@@ -162,7 +161,6 @@ class KeywordExtractor:
             cursor.execute("UPDATE news SET keywords = ?, industry = ? WHERE id = ?", (",".join(keyword_list), ",".join(coins), news_id))
         conn.commit()
         conn.close()
-
 
     def _load_coin_dict(self):
         """从JSON文件加载币种词典"""
@@ -273,21 +271,21 @@ class KeywordExtractor:
 
 
 # 单例模式
-_keyword_extractor = None
+_crypto_analyzer = None
 
-def get_keyword_extractor() -> KeywordExtractor:
-    """获取关键词提取器单例"""
-    global _keyword_extractor
-    if _keyword_extractor is None:
-        _keyword_extractor = KeywordExtractor()
-    return _keyword_extractor
+def get_crypto_analyzer() -> CryptoAnalyzer:
+    """获取加密分析器单例"""
+    global _crypto_analyzer
+    if _crypto_analyzer is None:
+        _crypto_analyzer = CryptoAnalyzer()
+    return _crypto_analyzer
 
 
 if __name__ == "__main__":
-
+    pass
 
     # # 测试
-    # extractor = get_keyword_extractor()
+    # extractor = get_crypto_analyzer()
 
     # test_text = """
     # **“胜率100%巨鲸”凌晨加仓173.6枚BTC，总持仓价值超2.96亿美元** 10月26日，据链上分析师Ai姨（@ai_9684xtpa）监测，胜率100%的巨鲸在今日凌晨加仓173.6枚BTC。该巨鲸当前BTC多单持仓达1,482.9枚，价值1.65亿美元，开仓价为110,680.1美元。 此外，该巨鲸还持有33,270.78枚ETH多单，价值1.32亿美元，开仓价为3,897.59美元。其整体仓位超过2.96亿美元，目前浮盈270万美元。

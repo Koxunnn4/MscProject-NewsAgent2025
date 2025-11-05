@@ -14,7 +14,7 @@ sys.path.insert(0, PROJECT_ROOT)
 
 from config import API_HOST, API_PORT, API_DEBUG
 from src.database.db_manager import get_db_manager
-from src.crypto_analysis.keyword_extractor import get_keyword_extractor
+from src.crypto_analysis.crypto_analyzer import get_keyword_extractor
 from src.crypto_analysis.summarizer import get_summarizer
 from src.trend_analysis.trend_analyzer import get_trend_analyzer
 from src.push_system.push_manager import get_push_manager

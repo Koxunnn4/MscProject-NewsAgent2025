@@ -13,7 +13,7 @@ sys.path.insert(0, PROJECT_ROOT)
 
 from config import TELEGRAM_BOT_TOKEN, PUSH_CHECK_INTERVAL, MAX_PUSH_PER_USER
 from src.database.db_manager import get_db_manager
-from src.crypto_analysis.keyword_extractor import get_keyword_extractor
+from src.crypto_analysis.crypto_analyzer import get_keyword_extractor
 
 # 尝试导入 Telegram Bot API
 try:

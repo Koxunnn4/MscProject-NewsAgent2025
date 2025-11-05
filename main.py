@@ -12,7 +12,7 @@ sys.path.insert(0, PROJECT_ROOT)
 
 from config import PROJECT_ROOT, DATA_DIR, LOGS_DIR
 from src.database.db_manager import get_db_manager
-from src.crypto_analysis.keyword_extractor import get_keyword_extractor
+from src.crypto_analysis.crypto_analyzer import get_keyword_extractor
 from src.trend_analysis.trend_analyzer import get_trend_analyzer
 from src.push_system.push_manager import get_push_manager
 
