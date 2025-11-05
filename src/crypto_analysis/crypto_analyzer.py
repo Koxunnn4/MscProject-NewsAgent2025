@@ -104,19 +104,6 @@ class CryptoAnalyzer:
         except Exception as e:
             # 常见错误：empty vocabulary（文档可能全是停用词）等
             print(f"关键词提取失败: {e}")
-            # 作为后备：使用分词 + 词频统计提取关键词，避免抛出未定义变量错误
-            try:
-                tokens = self.tokenize_and_filter(text)
-                if not tokens:
-                    # 无有效词（可能全为停用词），返回空列表
-                    return []
-                cnt = Counter(tokens)
-                total = sum(cnt.values()) or 1
-                # 以词频归一化作为权重
-                kw_results = [(tok, cnt[tok] / total) for tok, _ in cnt.most_common(top_n)]
-            except Exception as e2:
-                print(f"后备关键词提取失败: {e2}")
-                return []
 
         return kw_results
 
@@ -197,77 +184,26 @@ class CryptoAnalyzer:
                     break
         return list(mentioned_coins)
 
-    def calculate_relevance(self, user_keyword: str, news_keywords: List[str],
-                          news_weights: List[float]) -> float:
-        """
-        计算用户关键词与新闻关键词的相关性
-
-        Args:
-            user_keyword: 用户输入的关键词
-            news_keywords: 新闻的关键词列表
-            news_weights: 新闻关键词的权重列表
-
-        Returns:
-            相关性得分
-        """
-        if not news_keywords:
-            return 0.0
-
+    def fetch_column_data(self, db_path, table, column):
+        """从数据库读取指定列的所有数据"""
+        conn = sqlite3.connect(db_path)
         try:
-            # 使用词袋模型计算余弦相似度
-            all_keywords = [user_keyword] + news_keywords
-            vectorizer = CountVectorizer().fit(all_keywords)
-            user_vector = vectorizer.transform([user_keyword]).toarray()
-            news_vector = vectorizer.transform([' '.join(news_keywords)]).toarray()
+            cur = conn.cursor()
+            cur.execute(f"SELECT {column} FROM {table} WHERE {column} IS NOT NULL")
+            rows = cur.fetchall()
+        finally:
+            conn.close()
+        return rows
 
-            # 余弦相似度
-            similarity = cosine_similarity(user_vector, news_vector)[0][0]
+    def calculate_relevance(self, db_path: str, table: str = "messages"):
+        pass
 
-            # 计算关键词匹配加权
-            weight_sum = sum(
-                news_weights[i] for i, kw in enumerate(news_keywords)
-                if user_keyword.lower() in kw.lower()
-            )
 
-            # 综合得分
-            relevance = similarity * (1 + weight_sum)
-            return relevance
 
-        except Exception as e:
-            print(f"相关性计算失败: {e}")
-            return 0.0
 
-    def get_top_relevant_news(self, user_keyword: str,
-                             news_list: List[Dict],
-                             top_k: int = 10) -> List[Dict]:
-        """
-        获取与用户关键词最相关的新闻
+    def get_top_relevant_news():
+        pass
 
-        Args:
-            user_keyword: 用户关键词
-            news_list: 新闻列表，每个新闻包含 keywords 和 weights
-            top_k: 返回前K条
-
-        Returns:
-            相关性最高的新闻列表
-        """
-        # 计算每条新闻的相关性
-        for news in news_list:
-            if 'keywords' in news and 'weights' in news:
-                news['relevance_score'] = self.calculate_relevance(
-                    user_keyword,
-                    news['keywords'],
-                    news['weights']
-                )
-            else:
-                news['relevance_score'] = 0.0
-
-        # 按相关性排序
-        sorted_news = sorted(news_list,
-                           key=lambda x: (x.get('relevance_score', 0), x.get('date', '')),
-                           reverse=True)
-
-        return sorted_news[:top_k]
 
 
 # 单例模式

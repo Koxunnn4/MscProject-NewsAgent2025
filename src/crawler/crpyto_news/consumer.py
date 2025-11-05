@@ -76,7 +76,10 @@ class NewsConsumer:
             top_n=10
         )
         print("Keywords: ", keywords)
-        keywords_str = ",".join([kw[0] for kw in keywords])
+        if keywords:
+            keywords_str = ",".join([kw[0] for kw in keywords])
+        else:
+            keywords_str = ""
 
         try:
             self.cursor.execute("SELECT MAX(message_id) FROM messages")
