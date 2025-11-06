@@ -103,7 +103,7 @@ class CryptoAnalyzer:
                 vectorizer=vectorizer,
                 keyphrase_ngram_range=(1, 3),
                 top_n=top_n,
-                diversity=0.3
+                diversity=0.5
             )
         except Exception as e:
             # 常见错误：empty vocabulary（文档可能全是停用词）等

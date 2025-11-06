@@ -3,6 +3,7 @@ import re
 import itertools
 import spacy
 from collections import Counter
+from datetime import datetime, timedelta, timezone
 
 # ======= 配置参数 =======
 DB_PATH = r"E:\msc_proj\MscProject-NewsAgent2025\src\crawler\crpyto_news\history.db"
@@ -42,26 +43,75 @@ class SimilarityAnalyzer:
                 continue
         raise RuntimeError("未找到可用的中文 spaCy 模型，请安装: python -m spacy download zh_core_web_lg")
 
-    def get_total_rows(self):
-        """获取数据库表的总行数"""
+    def get_total_rows(self, channel_ids=None, time_range=None):
         conn = sqlite3.connect(self.db_path)
         try:
             cur = conn.cursor()
-            cur.execute(f"SELECT COUNT(*) FROM {self.table}")
+
+            where_clauses = []
+            params = []
+
+            if channel_ids:
+                placeholders = ",".join("?" for _ in channel_ids)
+                where_clauses.append(f"channel_id IN ({placeholders})")
+                params.extend(channel_ids)
+
+            if time_range:
+                start_time, end_time = time_range
+                where_clauses.append("date BETWEEN ? AND ?")
+                params.extend([start_time, end_time])
+
+            where_sql = ""
+            if where_clauses:
+                where_sql = " WHERE " + " AND ".join(where_clauses)
+
+            sql = f"SELECT COUNT(*) FROM {self.table} {where_sql}"
+            cur.execute(sql, params)
             total = cur.fetchone()[0]
         finally:
             conn.close()
         return total
 
-    def fetch_column_data(self, column):
-        """从数据库读取指定列的所有数据"""
+    def fetch_column_data(self, column, channel_ids=None, time_range=None):
+        """
+        从数据库读取指定列数据，可根据 channel_ids 和时间范围筛选
+
+        Args:
+            column: 要查询的列名(str)
+            channel_ids: 可选, 列表，如["channel1", "channel2"]
+            time_range: 可选, tuple (start_time_iso, end_time_iso)
+
+        Returns:
+            查询结果 [(value,), ...]
+        """
         conn = sqlite3.connect(self.db_path)
         try:
             cur = conn.cursor()
-            cur.execute(f"SELECT {column} FROM {self.table} WHERE {column} IS NOT NULL")
+
+            where_clauses = []
+            params = []
+
+            if channel_ids:
+                placeholders = ",".join("?" for _ in channel_ids)
+                where_clauses.append(f"channel_id IN ({placeholders})")
+                params.extend(channel_ids)
+
+            if time_range:
+                start_time, end_time = time_range
+                where_clauses.append("date BETWEEN ? AND ?")
+                params.extend([start_time, end_time])
+
+            where_sql = ""
+            if where_clauses:
+                where_sql = " WHERE " + " AND ".join(where_clauses)
+
+            sql = f"SELECT {column} FROM {self.table} {where_sql} AND {column} IS NOT NULL" if where_sql else f"SELECT {column} FROM {self.table} WHERE {column} IS NOT NULL"
+
+            cur.execute(sql, params)
             rows = cur.fetchall()
         finally:
             conn.close()
+
         return rows
 
     def count_items_with_occurrence(self, rows, case_insensitive=True):
@@ -210,6 +260,77 @@ class SimilarityAnalyzer:
 
         return exists, top_similar
 
+    def get_time_range(self):
+        # 确定筛选的时间范围，给几个选项让用户选择
+        print("""\n请输入对应数字时间范围进行分析:（回车代表不限制时间）\n
+              1. 最近5分钟
+              2. 最近15分钟
+              3. 最近30分钟
+              4. 最近60分钟
+              5. 最近12小时
+              6. 最近24小时
+              7. 最近一周
+              8. 最近30天
+              9. 最近90天
+              """)
+
+        choice = input("请输入对应数字: ").strip()
+
+        now = datetime.now(timezone.utc)
+        if choice == "1":# 最近5分钟
+            start = now - timedelta(minutes=5)
+        elif choice == "2":# 最近15分钟
+            start = now - timedelta(minutes=15)
+        elif choice == "3":# 最近30分钟
+            start = now - timedelta(minutes=30)
+        elif choice == "4":# 最近60分钟
+            start = now - timedelta(hours=1)
+        elif choice == "5":# 最近12小时
+            start = now - timedelta(hours=12)
+        elif choice == "6":# 最近24小时
+            start = now - timedelta(hours=24)
+        elif choice == "7":# 最近一周
+            start = now - timedelta(days=7)
+        elif choice == "8":# 最近30天
+            start = now - timedelta(days=30)
+        elif choice == "9":# 最近90天
+            start = now - timedelta(days=90)
+        else:
+            return None  # 不限制时间
+        return (start.isoformat(), now.isoformat())
+
+    def get_channel_ids(self):
+        # 1. @theblockbeats id: -1001387109317
+        # 2. @TechFlowDaily id: -1001735732363
+        # 3. @news6551 id: -1002395608815
+        # 4. @MMSnews id: -1002117032512
+
+        # 确定筛选的频道
+        print("\n请输入对应数字频道进行分析:（回车代表所有频道）")
+        print("1. @theblockbeats")
+        print("2. @TechFlowDaily")
+        print("3. @news6551")
+        print("4. @MMSnews")
+        print("回车. 所有频道")
+        choice = input("请输入对应数字，多个数字用空格分隔: ").strip()
+        #可以输入多个数字，如"1 3"
+        channel_choices = choice.split(" ") if choice else []
+        channel_map = {
+            "1": ["-1001387109317"],
+            "2": ["-1001735732363"],
+            "3": ["-1002395608815"],
+            "4": ["-1002117032512"],
+            "all": None
+        }
+        channel_ids = []
+        for ch in channel_choices:
+            ids = channel_map.get(ch)
+            if ids:
+                channel_ids.extend(ids)
+        return channel_ids
+
+
+
 def main():
     print(f"\n{'#'*80}")
     print(f"# 数据库分析工具")
@@ -225,12 +346,16 @@ def main():
         top_n=TOP_N,
     )
 
+    time_range = analyzer.get_time_range()
+
+    channel_ids = analyzer.get_channel_ids()
+
     print("\n[0/4] 统计数据库总行数...")
     total_rows = analyzer.get_total_rows()
     print(f"✓ 数据库总行数: {total_rows}")
 
     print("\n[1/4] 读取关键词数据...")
-    keyword_rows = analyzer.fetch_column_data(analyzer.keyword_column)
+    keyword_rows = analyzer.fetch_column_data(analyzer.keyword_column, channel_ids=channel_ids, time_range=time_range)
     keyword_counter, keyword_occurrence = analyzer.count_items_with_occurrence(keyword_rows, case_insensitive=True)
     # analyzer.print_counter_with_ratio(
     #     keyword_counter,
@@ -268,17 +393,22 @@ def main():
     print(f"{'='*80}\n")
 
     while True:
+
         input_keyword = input("请输入你感兴趣的关键词: ")
+        print("="*60)
         exists, top_similar = analyzer.query_keyword_similarity(nlp, input_keyword, keyword_counter)
 
         if exists:
-            print(f"关键词'{input_keyword}'在数据库中存在。")
+            print(f"✓ 关键词'{input_keyword}'在数据库中存在。")
         else:
-            print(f"关键词'{input_keyword}'在数据库中不存在。")
+            print(f"✗ 关键词'{input_keyword}'在数据库中不存在。")
 
         print("与输入关键词最接近的 top 10 关键词及相似度：")
         for i, (word, count, sim) in enumerate(top_similar, 1):
             print(f"{i}. {word} (出现次数: {count}) - 相似度: {sim:.4f}")
+
+        print("="*60)
+        print()
 
 if __name__ == "__main__":
     main()

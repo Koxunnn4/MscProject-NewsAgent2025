@@ -202,6 +202,7 @@ def get_crypto_analyzer() -> CryptoAnalyzer:
 
 
 if __name__ == "__main__":
+    pass
     # DB_PATH = r"E:\msc_proj\MscProject-NewsAgent2025\src\crawler\crpyto_news\history.db"
     # TABLE = "messages"
     # KEYWORD_COLUMN = "keywords"
