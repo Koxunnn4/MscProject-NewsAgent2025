@@ -12,25 +12,56 @@
 4. **热度分析**（Task 3）：分析关键词在时间维度的热度变化，支持可视化
 5. **实时推送**（Task 4）：订阅关键词，自动推送相关新闻到 Telegram
 
+### 🆕 最新功能增强（v2.0）
+
+6. **统一数据接口**：整合虚拟币和港股数据源，提供统一访问接口
+7. **关键词匹配系统**：精准的关键词匹配（精确、部分、语义三种模式）
+8. **实时推送Pipeline**：完整的爬取→分析→匹配→推送流程
+9. **高级热度分析**：
+   - 异常检测（突然爆发、断崖式下跌）
+   - 增长速度分析（变化率、加速度）
+   - 关联词分析（关键词相关性、共现分析）
+10. **数据库新老分离**：实时库+历史库架构，自动定期合并
+11. **RAG问答系统**：基于检索增强生成的新闻问答
+
+
 ## 📁 项目结构
 
 ```
 project/
 ├── src/                          # 源代码
 │   ├── keyword_extraction/       # 关键词提取模块
-│   │   ├── keyword_extractor.py  # 关键词提取器（整合女同学代码）
+│   │   ├── keyword_extractor.py  # 关键词提取器
+│   │   └── summarizer.py         # 摘要生成器
+│   ├── crypto_analysis/          # 虚拟币分析模块
+│   │   ├── crypto_analyzer.py    # 虚拟币关键词提取和币种识别
 │   │   └── summarizer.py         # 摘要生成器
 │   ├── sentiment_analysis/       # 情感分析模块（预留）
 │   ├── trend_analysis/           # 热度分析模块（Task 3）
-│   │   └── trend_analyzer.py     # 趋势分析器（含可视化）
+│   │   ├── trend_analyzer.py     # 基础趋势分析器
+│   │   └── advanced_trend_analyzer.py  # 高级分析（异常检测、增长速度、关联分析）
 │   ├── push_system/              # 推送系统（Task 4）
 │   │   └── push_manager.py       # 推送管理器
 │   ├── database/                 # 数据库模块
-│   │   ├── schema.py             # 数据库表结构
-│   │   └── db_manager.py         # 数据库管理器
-│   ├── crawler/                  # 爬虫模块（telegram-crypto）
-│   └── utils/                    # 工具函数
-│       └── helpers.py
+│   │   ├── schema.py             # 数据库表结构（已优化索引）
+│   │   ├── db_manager.py         # 数据库管理器
+│   │   └── db_sync_manager.py    # 数据库同步管理（新老分离）
+│   ├── crawler/                  # 爬虫模块
+│   │   ├── crpyto_news/          # Telegram虚拟币新闻爬虫
+│   │   │   ├── producer.py       # 新闻生产者
+│   │   │   ├── consumer.py       # 新闻消费者
+│   │   │   └── ...
+│   │   └── HKStocks/             # AAStocks港股新闻爬虫
+│   │       ├── aastocks_scraper.py
+│   │       ├── models.py
+│   │       └── ...
+│   ├── rag_system/               # RAG问答系统（新增）
+│   │   └── news_qa_system.py     # 新闻问答系统
+│   ├── utils/                    # 工具函数
+│   │   └── helpers.py
+│   ├── unified_news_interface.py # 统一数据接口（新增）
+│   ├── keyword_matching.py       # 关键词匹配系统（新增）
+│   └── realtime_push_pipeline.py # 实时推送Pipeline（新增）
 ├── api/                          # API 接口
 │   └── app.py                    # Flask API 服务器
 ├── data/                         # 数据文件
@@ -39,11 +70,22 @@ project/
 ├── logs/                         # 日志
 ├── config.py                     # 配置文件
 ├── main.py                       # 主程序入口
+├── test_complete_system.py       # 完整系统测试脚本（新增）
 ├── requirements.txt              # 依赖列表
+├── testdb_realtime.db            # 实时数据库（新增）
+├── testdb_history.db             # 历史数据库
 └── README.md                     # 本文件
 ```
 
 ## 🚀 快速开始
+
+### 0. 测试系统（推荐）
+
+运行完整系统测试，验证所有功能：
+
+```bash
+python test_complete_system.py
+```
 
 ### 1. 环境配置
 
