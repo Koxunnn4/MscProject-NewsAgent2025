@@ -115,6 +115,33 @@ CREATE TABLE IF NOT EXISTS sentiment_analysis (
 );
 """
 
+# 港股新闻表（HKStocks专用）
+CREATE_HKSTOCKS_NEWS_TABLE = """
+CREATE TABLE IF NOT EXISTS hkstocks_news (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    url TEXT NOT NULL UNIQUE,
+    content TEXT NOT NULL,
+    publish_date TEXT NOT NULL,
+    source TEXT DEFAULT 'AAStocks',
+    category TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+);
+"""
+
+# HKStocks新闻URL索引（用于快速去重）
+CREATE_HKSTOCKS_URL_INDEX = """
+CREATE INDEX IF NOT EXISTS idx_hkstocks_url
+ON hkstocks_news(url);
+"""
+
+# HKStocks新闻日期索引（用于按日期查询）
+CREATE_HKSTOCKS_DATE_INDEX = """
+CREATE INDEX IF NOT EXISTS idx_hkstocks_date
+ON hkstocks_news(publish_date);
+"""
+
 # 所有表的创建语句列表
 ALL_TABLES = [
     CREATE_MESSAGES_TABLE,
@@ -126,6 +153,9 @@ ALL_TABLES = [
     CREATE_SUBSCRIPTIONS_TABLE,
     CREATE_PUSH_HISTORY_TABLE,
     CREATE_NEWS_SUMMARIES_TABLE,
-    CREATE_SENTIMENT_ANALYSIS_TABLE
+    CREATE_SENTIMENT_ANALYSIS_TABLE,
+    CREATE_HKSTOCKS_NEWS_TABLE,
+    CREATE_HKSTOCKS_URL_INDEX,
+    CREATE_HKSTOCKS_DATE_INDEX
 ]
 

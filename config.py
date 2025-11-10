@@ -53,6 +53,19 @@ PLOT_STYLE = 'seaborn-v0_8-darkgrid'
 PLOT_DPI = 100
 PLOT_FIGSIZE = (12, 6)
 
+# 港股新闻爬虫配置
+HKSTOCKS_SOURCE_ID = 'aastocks'
+HKSTOCKS_BASE_URL = 'http://www.aastocks.com/tc/stocks/news/aafn'
+HKSTOCKS_REQUEST_TIMEOUT = 30  # 请求超时时间（秒）
+HKSTOCKS_REQUEST_DELAY = 1.5  # 请求延迟（秒），避免过快访问
+HKSTOCKS_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+    'Accept-Encoding': 'gzip, deflate',
+    'Connection': 'keep-alive',
+}
+
 # 创建必要的目录
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(LOGS_DIR, exist_ok=True)
