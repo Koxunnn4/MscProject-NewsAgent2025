@@ -139,7 +139,30 @@ ON hkstocks_news(url);
 # HKStocks新闻日期索引（用于按日期查询）
 CREATE_HKSTOCKS_DATE_INDEX = """
 CREATE INDEX IF NOT EXISTS idx_hkstocks_date
-ON hkstocks_news(publish_date);
+ON hkstocks_news(publish_date DESC);
+"""
+
+# 新闻消息表索引（优化查询性能）
+CREATE_MESSAGES_DATE_INDEX = """
+CREATE INDEX IF NOT EXISTS idx_messages_date 
+ON messages(date DESC);
+"""
+
+CREATE_MESSAGES_CHANNEL_INDEX = """
+CREATE INDEX IF NOT EXISTS idx_messages_channel 
+ON messages(channel_id, date);
+"""
+
+# 推送历史索引（用于快速查询是否已推送）
+CREATE_PUSH_HISTORY_INDEX = """
+CREATE INDEX IF NOT EXISTS idx_push_history_sub 
+ON push_history(subscription_id, news_id);
+"""
+
+# 关键词热度趋势索引（用于热度查询）
+CREATE_KEYWORD_TRENDS_INDEX = """
+CREATE INDEX IF NOT EXISTS idx_keyword_trends 
+ON keyword_trends(keyword, date);
 """
 
 # 所有表的创建语句列表
@@ -149,13 +172,17 @@ ALL_TABLES = [
     CREATE_NEWS_KEYWORDS_INDEX,
     CREATE_NEWS_ID_INDEX,
     CREATE_KEYWORD_TRENDS_TABLE,
+    CREATE_KEYWORD_TRENDS_INDEX,
     CREATE_KEYWORD_SYNONYMS_TABLE,
     CREATE_SUBSCRIPTIONS_TABLE,
     CREATE_PUSH_HISTORY_TABLE,
+    CREATE_PUSH_HISTORY_INDEX,
     CREATE_NEWS_SUMMARIES_TABLE,
     CREATE_SENTIMENT_ANALYSIS_TABLE,
     CREATE_HKSTOCKS_NEWS_TABLE,
     CREATE_HKSTOCKS_URL_INDEX,
-    CREATE_HKSTOCKS_DATE_INDEX
+    CREATE_HKSTOCKS_DATE_INDEX,
+    CREATE_MESSAGES_DATE_INDEX,
+    CREATE_MESSAGES_CHANNEL_INDEX
 ]
 
