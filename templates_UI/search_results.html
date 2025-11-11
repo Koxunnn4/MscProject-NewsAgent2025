@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>搜索结果 - {{ keyword }}</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 24px; }
+    a { color: #2b6cb0; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    h1 { margin-bottom: 8px; }
+    .meta { color: #666; margin-bottom: 16px; }
+    .result { border: 1px solid #eee; padding: 12px; border-radius: 8px; margin-bottom: 12px; }
+    .result .date { color: #666; font-size: 14px; }
+    .result .summary { margin-top: 8px; font-weight: 500; }
+    .result .orig { color: #444; margin-top: 8px; }
+    .trend { margin-top: 24px; }
+    .sidebar { margin-top: 24px; }
+    .kw-list { display: flex; flex-wrap: wrap; gap: 8px; }
+    .kw-item { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 6px; color: #fff; background: #2b6cb0; }
+    .kw-item:hover { filter: brightness(1.05); }
+    .kw-link { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 6px; color: #2b6cb0; border: 1px solid #2b6cb0; text-decoration: none; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <a href="/">← 返回首页</a>
+  <div class="container">
+    <h1>关键词：{{ keyword }}</h1>
+
+    <!-- 热门关键词置顶筛选 -->
+    <div class="hot-keywords" style="margin: 12px 0 16px 0;">
+      {% if top_keywords_counts %}
+        {% for item in top_keywords_counts %}
+          {% set kw = item['keyword'] %}
+          {% set count = item['count'] %}
+          {% set denom = (max_count - min_count) if (max_count - min_count) != 0 else 1 %}
+          {% set frac = (count - min_count) / denom %}
+          {% set lightness = (85 - 20 * frac) | int %}
+          {% if loop.index <= 5 %}
+            <a class="kw-item" href="/search?keyword={{ kw }}&top_k=5" style="background-color: hsl(10, 80%, {{ lightness }}%); color: #333;">{{ kw }}</a>
+          {% else %}
+            <a class="kw-link" href="/search?keyword={{ kw }}&top_k=5">{{ kw }}</a>
+          {% endif %}
+        {% endfor %}
+      {% else %}
+        <em>暂无关键词数据</em>
+      {% endif %}
+    </div>
+  
+    <!-- 结果列表 -->
+    <div class="results">
+      <div class="meta">共有 {{ total_results }} 条结果</div>
+      {% if results %}
+        {% for news in results %}
+          <div class="result">
+            <div class="date">日期：{{ news["date"] }}</div>
+            <div class="summary">摘要：{{ news["summary"] }}</div>
+            <div class="orig">原文：{{ news["original_text"] }}</div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <em>没有找到相关的新闻。</em>
+      {% endif %}
+    </div>
+  
+    <!-- 趋势图 -->
+    <div class="trend" style="margin-top: 24px;">
+      <h2>关键词日趋势</h2>
+      <canvas id="trendChart" width="800" height="140"></canvas>
+    </div>
+
+
+  </div>
+  
+  <style>
+    .container { max-width: 900px; margin: 0 auto; padding: 16px; }
+    .layout { display: flex; align-items: flex-start; gap: 24px; }
+    .main { flex: 1; }
+    .sidebar { width: 240px; }
+    .hot-keywords { display: flex; flex-wrap: wrap; gap: 6px; }
+    .kw-link { text-decoration: none; }
+    .kw-item { display: inline-block; padding: 4px 10px; border-radius: 12px; color: #333; }
+    .kw-list { display: flex; flex-direction: column; gap: 8px; }
+    .meta { color: #666; margin-bottom: 8px; }
+    .result-card { border: 1px solid #eee; padding: 10px; border-radius: 8px; margin-bottom: 10px; }
+    .date { font-size: 12px; color: #999; margin-bottom: 6px; }
+    .summary { margin-bottom: 6px; }
+    .link a { color: #0a66c2; }
+  </style>
+  
+  <script>
+    const labels = JSON.parse('{{ trend_labels | safe }}');
+    const counts = JSON.parse('{{ trend_counts | safe }}');
+    const ctx = document.getElementById('trendChart').getContext('2d');
+    const chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: '每日热度',
+          data: counts,
+          borderColor: '#e67e22',
+          backgroundColor: 'rgba(230, 126, 34, 0.15)',
+          tension: 0.3,
+          pointRadius: 1,
+          borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { maxRotation: 0, autoSkip: true } },
+          y: { beginAtZero: true }
+        }
+      }
+    });
+  </script>
+</body>
+</html>
