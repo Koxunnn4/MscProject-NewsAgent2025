@@ -1,0 +1,4 @@
+src/crawler/crpyto_news/history.db
+src/crawler/crpyto_news/__pycache__/consumer.cpython-310.pyc
+src/crawler/crpyto_news/historytest.db
+src/crawler/crpyto_news/tg_session.session

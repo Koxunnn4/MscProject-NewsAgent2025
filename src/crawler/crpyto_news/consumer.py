@@ -79,6 +79,7 @@ class NewsConsumer:
         print("Keywords: ", keywords)
         if keywords:
             keywords_str = ",".join([kw[0] for kw in keywords])
+            keywords_str = self.capitalize_english(keywords_str)  # 英文部分转大写
         else:
             keywords_str = ""
 
@@ -93,6 +94,16 @@ class NewsConsumer:
             self.conn.commit()
         except Exception as e:
             logger.error(f"DB insert error: {e}")
+
+    def capitalize_english(self, text: str) -> str:
+        """将字符串中的英文部分转为大写，保留中文和其他字符不变"""
+        result = []
+        for char in text:
+            if char.isalpha() and ord(char) < 128:  # ASCII 英文字符
+                result.append(char.upper())
+            else:
+                result.append(char)
+        return ''.join(result)
 
     # def run_keywords_extraction(self, text):
     #     """对新闻文本提取前k个关键词,返回逗号分隔字符串"""
