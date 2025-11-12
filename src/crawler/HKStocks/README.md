@@ -390,7 +390,141 @@ for news in news_list:
 
 本模块为学术项目的一部分，仅供学习和研究使用。
 
+## 关键词提取集成 (NEW)
+
+### 功能说明
+
+从 v1.1.0 开始，爬虫集成了自动关键词提取功能。爬取新闻后会自动提取关键词并保存到数据库的 `keywords` 字段。
+
+### 使用方法
+
+#### 1. 默认启用关键词提取
+
+```python
+from src.crawler.HKStocks import scrape_hkstocks_news
+
+# 爬取新闻，自动提取关键词（默认行为）
+news_list = scrape_hkstocks_news(days=1, save_to_db=True)
+```
+
+#### 2. 禁用关键词提取
+
+```python
+from src.crawler.HKStocks import AaStocksScraper
+
+scraper = AaStocksScraper()
+news_list = scraper.fetch_news(days=1)
+
+# 保存时禁用关键词提取
+scraper.save_to_database(news_list, extract_keywords=False)
+```
+
+### 关键词提取技术
+
+- **模型**: KeyBERT (paraphrase-multilingual-MiniLM-L12-v2)
+- **分词**: jieba 中文分词
+- **停用词**: 1201个（包含金融领域术语）
+- **提取数量**: 每条新闻 10 个关键词
+- **输入**: 新闻标题 + 内容
+
+详细信息请查看: [src/hkstocks_analysis/README.md](../../hkstocks_analysis/README.md)
+
+### 数据库表结构更新
+
+`hkstocks_news` 表新增 `keywords` 字段：
+
+```sql
+CREATE TABLE hkstocks_news (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    url TEXT NOT NULL UNIQUE,
+    content TEXT NOT NULL,
+    publish_date TEXT NOT NULL,
+    source TEXT DEFAULT 'AAStocks',
+    category TEXT,
+    keywords TEXT,                          -- 新增：关键词（逗号分隔）
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+);
+```
+
+### 关键词格式
+
+关键词以逗号分隔的字符串存储：
+
+```
+腾讯控股,第三季度,净利润,业绩报告,金融科技,企业服务,游戏业务,人工智能,云计算,同比增长
+```
+
+解析示例：
+
+```python
+import sqlite3
+
+conn = sqlite3.connect('data/news_analysis.db')
+cursor = conn.cursor()
+
+cursor.execute("""
+    SELECT title, keywords
+    FROM hkstocks_news
+    WHERE keywords IS NOT NULL
+    LIMIT 1
+""")
+
+title, keywords_str = cursor.fetchone()
+keywords_list = keywords_str.split(',')
+
+print(f"新闻: {title}")
+print(f"关键词: {keywords_list}")
+```
+
+### 测试
+
+运行集成测试：
+
+```bash
+# 检查数据库表结构
+python test_crawler_with_keywords.py --check-schema
+
+# 完整测试（爬取并提取关键词）
+python test_crawler_with_keywords.py
+```
+
+### 依赖要求
+
+关键词提取需要额外的依赖：
+
+```bash
+pip install keybert sentence-transformers spacy jieba
+python -m spacy download zh_core_web_sm
+```
+
+如果缺少依赖，爬虫会自动降级为不提取关键词模式。
+
+### 示例输出
+
+```
+开始爬取AAStocks新闻 (最近 1 天)...
+汇总页面找到 45 条新闻链接
+初始化关键词提取器...
+Loading KeyBERT model...
+关键词提取器已就绪
+
+  ✓ [2025-11-12 14:30] 騰訊控股公布第三季度業績...
+  + 保存新闻: 騰訊控股公布第三季度業績...
+    关键词: 腾讯控股,第三季度,净利润,业绩报告,金融科技...
+
+保存完成: 新增 5 条，更新 0 条，跳过重复 0 条
+```
+
 ## 更新日志
+
+### v1.1.0 (2025-11-12)
+- ✨ 新增自动关键词提取功能
+- ✨ 数据库表新增 keywords 字段
+- ✨ 集成 KeyBERT + jieba 关键词提取
+- 🔧 支持禁用关键词提取选项
+- 📝 更新文档和测试脚本
 
 ### v1.0.0 (2025-11-05)
 - 初始版本

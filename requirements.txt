@@ -13,6 +13,7 @@ transformers>=4.30.0
 
 # Chinese text processing
 jieba>=0.42.1
+spacy>=3.5.0
 
 # Visualization
 matplotlib>=3.5.0

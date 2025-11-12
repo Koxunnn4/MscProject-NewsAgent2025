@@ -367,13 +367,14 @@ class AaStocksScraper:
             print(f"  × 获取新闻内容失败 [{url}]: {e}")
             return ""
 
-    def save_to_database(self, news_list: List[HKStockNews], db_manager=None) -> int:
+    def save_to_database(self, news_list: List[HKStockNews], db_manager=None, extract_keywords: bool = True) -> int:
         """
-        保存新闻到hkstocks_news表（按URL去重）
+        保存新闻到hkstocks_news表（按URL去重），并提取关键词
 
         Args:
             news_list: 新闻对象列表
             db_manager: 数据库管理器实例，如果为None则自动获取
+            extract_keywords: 是否提取关键词，默认True
 
         Returns:
             实际保存的新闻数量
@@ -390,6 +391,19 @@ class AaStocksScraper:
             except ImportError:
                 print("错误: 无法导入数据库管理器")
                 return 0
+
+        # 初始化关键词提取器（如果需要）
+        analyzer = None
+        if extract_keywords:
+            try:
+                from src.hkstocks_analysis.hkstocks_analyzer import get_hkstocks_analyzer
+                print("初始化关键词提取器...")
+                analyzer = get_hkstocks_analyzer()
+                print("关键词提取器已就绪")
+            except Exception as e:
+                print(f"警告: 无法初始化关键词提取器: {e}")
+                print("将保存新闻但不提取关键词")
+                extract_keywords = False
 
         # 确保hkstocks_news表已创建
         try:
@@ -427,28 +441,63 @@ class AaStocksScraper:
                     # 如果已存在，检查内容是否有更新
                     existing_id, existing_content = result[0]
                     if len(news.content) > len(existing_content):
-                        # 更新内容（如果新内容更长）
+                        # 提取关键词（如果启用）
+                        keywords_str = None
+                        if extract_keywords and analyzer:
+                            try:
+                                full_text = f"{news.title}\n{news.content}"
+                                keywords = analyzer.extract_keywords(full_text, top_n=5)
+                                if keywords:
+                                    keywords_str = ",".join([kw[0] for kw in keywords])
+                            except Exception as e:
+                                print(f"    × 关键词提取失败: {e}")
+
+                        # 先检查table是否存在该列，没有则创建
+                        columns = db_manager.get_table_columns("hkstocks_news")
+                        if "keywords" not in columns:
+                            print("警告: 数据库表中不存在 'keywords' 列")
+                            alter_query = "ALTER TABLE hkstocks_news ADD COLUMN keywords TEXT"
+                            db_manager.execute_update(alter_query, (), db_manager.history_db_path)
+
+                        # 更新内容和关键词（如果新内容更长）
                         update_query = """
                             UPDATE hkstocks_news
-                            SET content = ?, updated_at = datetime('now')
+                            SET content = ?, keywords = ?, updated_at = datetime('now')
                             WHERE id = ?
                         """
                         db_manager.execute_update(
                             update_query,
-                            (news.content, existing_id),
+                            (news.content, keywords_str, existing_id),
                             db_manager.history_db_path
                         )
                         updated_count += 1
                         print(f"  ↻ 更新新闻: {news.title[:50]}...")
+                        if keywords_str:
+                            print(f"    关键词: {keywords_str[:80]}...")
                     else:
                         duplicate_count += 1
                         print(f"  - 跳过重复新闻: {news.title[:50]}...")
                     continue
 
+                # 提取关键词（如果启用）
+                keywords_str = None
+                if extract_keywords and analyzer:
+                    try:
+                        # 结合标题和内容提取关键词
+                        full_text = f"{news.title}\n{news.content}"
+                        keywords = analyzer.extract_keywords(full_text, top_n=10)
+
+                        if keywords:
+                            # 将关键词转为逗号分隔的字符串
+                            keywords_str = ",".join([kw[0] for kw in keywords])
+                            print(f"    关键词: {keywords_str[:80]}...")
+                    except Exception as e:
+                        print(f"    × 关键词提取失败: {e}")
+
                 # 插入新闻
                 insert_query = """
-                    INSERT INTO hkstocks_news (title, url, content, publish_date, source, category)
-                    VALUES (?, ?, ?, ?, ?, ?)
+                    INSERT INTO hkstocks_news (title, url, content, publish_date, source, category, keywords)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
                 """
 
                 db_manager.execute_update(
@@ -459,7 +508,8 @@ class AaStocksScraper:
                         news.content,
                         news.publish_date.isoformat(),
                         news.source,
-                        news.category
+                        news.category,
+                        keywords_str
                     ),
                     db_manager.history_db_path
                 )
