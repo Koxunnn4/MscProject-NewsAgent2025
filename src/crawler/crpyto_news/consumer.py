@@ -3,15 +3,9 @@ import asyncio
 import redis
 import logging
 import sqlite3
-from sklearn.feature_extraction.text import CountVectorizer
-import jieba
-from keybert import KeyBERT
-import spacy
-from spacy.matcher import PhraseMatcher
 import os
 import sys
 import re
-import torch
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
 if project_root not in sys.path:
@@ -44,17 +38,8 @@ class NewsConsumer:
         self.conn.commit()
 
         self.analyzer = CryptoAnalyzer()
-
-        self._kw_model = KeyBERT(model="paraphrase-multilingual-MiniLM-L12-v2")
-        # self.stopwords_path = "stopwords.txt"
-        self.stopwords = set()
-        # self.coin_dict_path = "coin_dict.json"
-
-        # 加载spacy中文模型和币种词典
-        self.nlp = spacy.load("zh_core_web_sm")
-        # self.coin_dict = self._load_coin_dict()
-        # self.matcher = self._build_matcher()
-
+        # ✅ CryptoAnalyzer 已包含 KeyBERT、spaCy、币种识别等所有分析功能
+        
     async def process_message(self, message):
         """处理单条消息，打印并写入数据库，既识别币种，也提取关键词"""
         data = json.loads(message)
@@ -79,7 +64,7 @@ class NewsConsumer:
         print("Keywords: ", keywords)
         if keywords:
             keywords_str = ",".join([kw[0] for kw in keywords])
-            keywords_str = self.capitalize_english(keywords_str)  # 英文部分转大写
+            # keywords_str = self.capitalize_english(keywords_str)  # 英文部分转大写
         else:
             keywords_str = ""
 
@@ -104,98 +89,6 @@ class NewsConsumer:
             else:
                 result.append(char)
         return ''.join(result)
-
-    # def run_keywords_extraction(self, text):
-    #     """对新闻文本提取前k个关键词,返回逗号分隔字符串"""
-    #     self._load_stopwords()
-    #     vectorizer = CountVectorizer(tokenizer=self.tokenize_and_filter)
-    #     top_n = 10 if len(text) > 50 else 5
-    #     keywords = self._kw_model.extract_keywords(
-    #         text,
-    #         vectorizer=vectorizer,
-    #         keyphrase_ngram_range=(1, 3),
-    #         top_n=top_n,
-    #     )
-    #     keywords_str = ",".join([kw[0] for kw in keywords])
-    #     return keywords_str
-
-    # def tokenize_and_filter(self, text):
-    #     # 1. jieba分词
-    #     tokens = jieba.lcut(text)
-    #     # 2. 去除停用词
-    #     if self.stopwords:
-    #         tokens = [tok for tok in tokens if tok not in self.stopwords]
-    #     # 3. 过滤不符合规则的词
-    #     allowed_pattern = re.compile(r'^[A-Za-z0-9\u4e00-\u9fff]+$')
-    #     def is_valid_keyword(w):
-    #         if not w:
-    #             return False
-    #         w = w.strip()
-    #         # 规则1: 单独的汉字
-    #         if re.fullmatch(r'[\u4e00-\u9fff]', w):
-    #             return False
-    #         # 规则2: 单独的英文字母
-    #         if re.fullmatch(r'[A-Za-z]', w):
-    #             return False
-    #         # 规则3: 除了表示年份的数字以外,其他纯数字不通过
-    #         if re.fullmatch(r'\d+', w):
-    #             if not (1950 <= int(w) <= 2050):
-    #                 return False
-    #         # 规则4: 包含特殊字符
-    #         if not allowed_pattern.match(w):
-    #             return False
-
-    #         return True
-
-    #     # 应用过滤规则
-    #     filtered_tokens = [tok.strip() for tok in tokens if is_valid_keyword(tok)]
-
-    #     return filtered_tokens
-
-    # def _load_stopwords(self):
-    #     """加载停用词列表"""
-    #     try:
-    #         with open(self.stopwords_path, 'r', encoding='utf-8') as f:
-    #             for line in f:
-    #                 self.stopwords.add(line.strip())
-    #     except Exception as e:
-    #         logger.error(f"Failed to load stopwords: {e}")
-
-    # def _load_coin_dict(self):
-    #     """从JSON文件加载币种词典"""
-    #     try:
-    #         with open(self.coin_dict_path, 'r', encoding='utf-8') as f:
-    #             return json.load(f)
-    #     except Exception as e:
-    #         logger.error(f"Failed to load coin_dict.json: {e}")
-    #         return {}
-
-    # def _build_matcher(self):
-    #     """构建币种匹配器(英文不区分大小写)"""
-    #     patterns = []
-    #     for synonyms in self.coin_dict.values():
-    #         for name in synonyms:
-    #             name_lower = name.lower()
-    #             patterns.append(self.nlp.make_doc(name_lower))
-
-    #     matcher = PhraseMatcher(self.nlp.vocab, attr="LOWER")
-    #     matcher.add("COIN", patterns)
-    #     return matcher
-
-    # def identify_currency(self, text):
-    #     doc = self.nlp(text)
-    #     matches = self.matcher(doc)
-    #     mentioned_coins = set()
-
-    #     for _, start, end in matches:
-    #         span_text = doc[start:end].text
-    #         # 查找所属币种
-    #         for coin_id, synonyms in self.coin_dict.items():
-    #             if span_text in synonyms:
-    #                 mentioned_coins.add(coin_id)
-    #                 break
-
-    #     return list(mentioned_coins)
 
     def news_preprocess(self, data):
         content = data['content']

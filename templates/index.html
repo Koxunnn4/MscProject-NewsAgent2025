@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>加密货币新闻相似度分析工具</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- 页面头部 -->
+        <header class="header">
+            <h1>📊 加密货币新闻相似度分析工具</h1>
+            <p>实时分析关键词和币种相似度，发现新闻趋势</p>
+        </header>
+
+        <!-- 筛选区域 -->
+        <div class="filter-panel">
+            <div class="filter-row">
+                <div class="filter-group-compact">
+                    <label for="time-range">📅 时间范围</label>
+                    <select id="time-range">
+                        <option value="">不限制</option>
+                        <option value="5">最近5分钟</option>
+                        <option value="15">最近15分钟</option>
+                        <option value="30">最近30分钟</option>
+                        <option value="60">最近1小时</option>
+                        <option value="720">最近12小时</option>
+                        <option value="1440">最近24小时</option>
+                        <option value="10080">最近7天</option>
+                        <option value="43200">最近30天</option>
+                    </select>
+                </div>
+
+                <!-- 折叠式新闻源频道 -->
+                <div class="filter-group-compact">
+                    <div class="channels-collapse-wrapper">
+                        <button id="channels-toggle" class="collapse-toggle">
+                            📡 新闻源频道
+                            <span class="toggle-icon">▼</span>
+                        </button>
+                        <div id="channels-collapse-content" class="collapse-content" style="display: none;">
+                            <div id="channels-container" class="checkbox-group">
+                                <!-- 动态加载频道 -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="filter-group-compact">
+                    <button id="analyze-btn" class="btn btn-primary">🔍 分析</button>
+                    <div id="loading" class="loading" style="display: none;">
+                        <span class="spinner"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 分析结果区域 -->
+        <div class="results-panel" id="results-panel" style="display: none;">
+            <!-- 统计概览 -->
+            <div class="stats-overview">
+                <div class="stat-card">
+                    <h4>📰 总消息数</h4>
+                    <p class="stat-value" id="total-rows">-</p>
+                </div>
+                <div class="stat-card">
+                    <h4>🏷️ 关键词种类</h4>
+                    <p class="stat-value" id="keyword-total">-</p>
+                </div>
+                <div class="stat-card">
+                    <h4>💰 币种种类</h4>
+                    <p class="stat-value" id="currency-total">-</p>
+                </div>
+            </div>
+
+            <!-- 标签页 -->
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="keywords">关键词统计</button>
+                <button class="tab-btn" data-tab="currencies">币种统计</button>
+                <button class="tab-btn" data-tab="similarity">相似度分析</button>
+                <button class="tab-btn" data-tab="query">关键词查询</button>
+            </div>
+
+            <!-- 关键词统计标签页 -->
+            <div class="tab-content active" id="keywords-tab">
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>序号</th>
+                                <th>关键词</th>
+                                <th>出现次数</th>
+                                <th>出现行数</th>
+                                <th>占比(%)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="keywords-tbody">
+                            <!-- 动态加载 -->
+                        </tbody>
+                    </table>
+                </div>
+                <!-- 分页控件 -->
+                <div class="pagination" id="keywords-pagination">
+                    <button id="keywords-prev" class="pagination-btn">← 上一页</button>
+                    <span id="keywords-page-info" class="page-info">第 1 页</span>
+                    <button id="keywords-next" class="pagination-btn">下一页 →</button>
+                </div>
+            </div>
+
+            <!-- 币种统计标签页 -->
+            <div class="tab-content" id="currencies-tab">
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>序号</th>
+                                <th>币种</th>
+                                <th>出现次数</th>
+                                <th>出现行数</th>
+                                <th>占比(%)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="currencies-tbody">
+                            <!-- 动态加载 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 相似度分析标签页 -->
+            <div class="tab-content" id="similarity-tab">
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>序号</th>
+                                <th>关键词1</th>
+                                <th>出现次数</th>
+                                <th>关键词2</th>
+                                <th>出现次数</th>
+                                <th>相似度</th>
+                            </tr>
+                        </thead>
+                        <tbody id="similarity-tbody">
+                            <!-- 动态加载 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 关键词查询标签页 -->
+            <div class="tab-content" id="query-tab">
+                <div class="query-section">
+                    <div class="query-input-group">
+                        <input type="text" id="query-keyword" placeholder="输入你感兴趣的关键词..." class="query-input">
+                        <button id="query-btn" class="btn btn-secondary">🔎 查询</button>
+                    </div>
+
+                    <div id="query-result" class="query-result" style="display: none;">
+                        <div id="query-status"></div>
+                        <div id="query-similar" class="similar-words">
+                            <!-- 动态加载相似词 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 页脚 -->
+        <footer class="footer">
+            <p>© 2025 加密货币新闻分析平台 | Powered by Flask + spaCy</p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

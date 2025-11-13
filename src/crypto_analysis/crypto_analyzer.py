@@ -25,6 +25,7 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 sys.path.insert(0, PROJECT_ROOT)
 
 from config import KEYBERT_MODEL, TOP_N_KEYWORDS, KEYWORD_NGRAM_RANGE
+from model_loader import get_keybert_model, get_spacy_model
 
 try:
     from keybert import KeyBERT
@@ -37,28 +38,24 @@ except ImportError:
 class CryptoAnalyzer:
     def __init__(self, model_name: str = None):
         self.model_name = model_name or KEYBERT_MODEL
-        self.model = None
-        self.stopwords = set()
         self.coin_dict = self._load_coin_dict()
 
-        # 加载KeyBERT模型
-        if KEYBERT_AVAILABLE:
-            try:
-                self.model = KeyBERT(model=self.model_name)
-            except Exception as e:
-                print(f"KeyBERT模型加载失败: {e}")
-                self.model = None
+        # ✅ 使用统一的模型加载器，避免重复加载
+        # KeyBERT 模型
+        self.model = get_keybert_model(self.model_name) if KEYBERT_AVAILABLE else None
 
-        # 加载spaCy中文NER模型
+        # spaCy 中文 NER 模型
         try:
-            self.nlp = spacy.load("zh_core_web_sm")
-        except Exception as e:
-            print(f"spaCy中文模型加载失败: {e}")
+            self.nlp = get_spacy_model("zh_core_web_sm")
+        except RuntimeError as e:
+            print(f"spaCy 中文模型加载失败: {e}")
             self.nlp = None
 
         # 构建币种匹配器
-        if self.nlp:
+        if self.nlp and self.coin_dict:
             self.matcher = self._build_matcher()
+        else:
+            self.matcher = None
 
     def _load_stopwords(self, path: str = "stopwords.txt"):
         if not self.stopwords:

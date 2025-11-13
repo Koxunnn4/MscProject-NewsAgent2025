@@ -13,7 +13,7 @@ from typing import Tuple
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, PROJECT_ROOT)
 
-from crypto_analysis.crypto_analyzer import CryptoAnalyzer
+from crypto_analysis.crypto_analyzer import get_crypto_analyzer
 
 logging.basicConfig(
     level=logging.INFO,
@@ -38,7 +38,8 @@ class KeywordsAnalyzer:
         self.db_path = db_path
         self.conn = sqlite3.connect(db_path)
         self.cursor = self.conn.cursor()
-        self.analyzer = CryptoAnalyzer()
+        # ✅ 使用单例模式获取分析器，避免重复初始化
+        self.analyzer = get_crypto_analyzer()
         logger.info(f"✓ 已初始化 KeywordsAnalyzer，数据库: {db_path}")
 
     def capitalize_english(self, text: str) -> str:
@@ -67,7 +68,6 @@ class KeywordsAnalyzer:
             keywords = self.analyzer.extract_keywords(text, top_n=top_n)
             if keywords:
                 keywords_str = ",".join([kw[0] for kw in keywords])
-                # keywords_str = self.capitalize_english(keywords_str)  # 英文部分转大写
             else:
                 keywords_str = ""
 
@@ -278,7 +278,7 @@ def main():
     parser.add_argument(
         "--db",
         type=str,
-        default="historytest.db",
+        default="stream.db",
         help="数据库路径"
     )
     parser.add_argument(
