@@ -57,7 +57,7 @@ PLOT_FIGSIZE = (12, 6)
 HKSTOCKS_SOURCE_ID = 'aastocks'
 HKSTOCKS_BASE_URL = 'http://www.aastocks.com/tc/stocks/news/aafn'
 HKSTOCKS_REQUEST_TIMEOUT = 30  # 请求超时时间（秒）
-HKSTOCKS_REQUEST_DELAY = 1.5  # 请求延迟（秒），避免过快访问
+HKSTOCKS_REQUEST_DELAY = 0.5  # 请求延迟（秒），避免过快访问
 HKSTOCKS_HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',

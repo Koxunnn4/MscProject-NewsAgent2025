@@ -1,18 +1,24 @@
 """
 HKStocks News Analyzer
 
-This module provides keyword extraction functionality for Hong Kong stock market news.
+This module provides keyword extraction and industry classification functionality
+for Hong Kong stock market news.
 """
 
 import os
 import re
-from typing import List, Tuple, Set
+from typing import List, Tuple, Set, Dict
 from pathlib import Path
 
 import jieba
 import spacy
 from keybert import KeyBERT
 from sklearn.feature_extraction.text import CountVectorizer
+
+try:
+    import yaml
+except ImportError:
+    yaml = None
 
 
 class HKStocksAnalyzer:
@@ -23,8 +29,10 @@ class HKStocksAnalyzer:
         self.model = None
         self.nlp = None
         self.stopwords = set()
+        self.industries = []  # Industry definitions
         self._initialize_models()
         self._load_stopwords()
+        self._load_industries()
 
     def _initialize_models(self):
         """Initialize KeyBERT and spaCy models"""
@@ -224,6 +232,94 @@ class HKStocksAnalyzer:
                     entities.add(token_text)
 
         return list(entities)
+
+    def _load_industries(self):
+        """Load industry definitions from YAML file"""
+        if yaml is None:
+            print("Warning: PyYAML not installed, industry classification disabled")
+            return
+
+        try:
+            industry_path = Path(__file__).parent / 'hkstocks_industry.yaml'
+
+            if not industry_path.exists():
+                print(f"Warning: Industry file not found at {industry_path}")
+                return
+
+            with open(industry_path, 'r', encoding='utf-8') as f:
+                data = yaml.safe_load(f)
+                self.industries = data.get('industries', [])
+
+            if not self.industries:
+                print("Warning: No industries loaded from YAML file")
+            else:
+                print(f"Loaded {len(self.industries)} industry definitions")
+
+        except Exception as e:
+            print(f"Error loading industries: {e}")
+            self.industries = []
+
+    def identify_industry(
+        self,
+        text: str,
+        top_n: int = 1
+    ) -> List[Tuple[str, str, int]]:
+        """
+        Identify industry using keyword matching
+
+        Args:
+            text: News text (title + content)
+            top_n: Number of top industries to return
+
+        Returns:
+            List of (industry_id, industry_name_zh, match_count) tuples
+            Sorted by match count in descending order
+        """
+        if not text or not self.industries:
+            return []
+
+        try:
+            # Preprocess text
+            text = self._preprocess_text(text)
+
+            if len(text) < 10:
+                return []
+
+            # Count keyword matches for each industry
+            industry_scores: Dict[int, int] = {}  # index -> match_count
+
+            for idx, industry in enumerate(self.industries):
+                keywords = industry.get('keywords', [])
+                match_count = 0
+
+                for keyword in keywords:
+                    # Count occurrences of this keyword in text
+                    count = text.count(keyword)
+                    match_count += count
+
+                if match_count > 0:
+                    industry_scores[idx] = match_count
+
+            # Sort by match count (descending)
+            sorted_industries = sorted(
+                industry_scores.items(),
+                key=lambda x: x[1],
+                reverse=True
+            )[:top_n]
+
+            # Format results
+            results = []
+            for idx, match_count in sorted_industries:
+                industry = self.industries[idx]
+                industry_id = industry.get('id', '')
+                industry_name = industry.get('name_zh', '')
+                results.append((industry_id, industry_name, match_count))
+
+            return results
+
+        except Exception as e:
+            print(f"Error identifying industry: {e}")
+            return []
 
 
 # Singleton instance

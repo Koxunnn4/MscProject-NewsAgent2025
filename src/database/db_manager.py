@@ -25,7 +25,7 @@ class DatabaseManager:
         Args:
             db_path: 数据库文件路径，默认使用配置文件中的路径
         """
-        self.db_path = db_path or DATABASE_PATH
+        self.db_path = db_path or HISTORY_DB_PATH
         self.history_db_path = HISTORY_DB_PATH
         self._init_database()
     
@@ -34,7 +34,16 @@ class DatabaseManager:
         with self.get_connection() as conn:
             cursor = conn.cursor()
             for sql in ALL_TABLES:
-                cursor.execute(sql)
+                try:
+                    cursor.execute(sql)
+                except sqlite3.OperationalError as e:
+                    # 忽略"表已存在"错误
+                    if 'already exists' not in str(e):
+                        print(f"Warning: Failed to execute SQL: {e}")
+                except sqlite3.DatabaseError as e:
+                    # 数据库损坏错误
+                    print(f"Database error: {e}")
+                    raise
             conn.commit()
     
     @contextmanager
