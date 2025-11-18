@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Web3 新闻搜索引擎{% endblock %}
+
+{% block head %}
+<style>
+    .welcome-container { text-align: center; padding: 80px 20px; }
+    .welcome-container h1 { font-size: 3rem; margin-bottom: 16px; }
+    .welcome-container p { font-size: 1.25rem; color: #4a5568; margin-bottom: 32px; }
+    .cta-buttons { display: flex; justify-content: center; gap: 24px; }
+    .cta-button { text-decoration: none; padding: 12px 24px; border-radius: 8px; font-size: 1.1rem; font-weight: 600; transition: all 0.3s; }
+    .cta-primary { background-color: #2b6cb0; color: white; }
+    .cta-primary:hover { background-color: #2c5282; transform: translateY(-2px); }
+    .cta-secondary { background-color: #E2E8F0; color: #2D3748; }
+    .cta-secondary:hover { background-color: #CBD5E0; transform: translateY(-2px); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="welcome-container">
+    <h1>欢迎使用 Web3 新闻分析平台</h1>
+    <p>一站式聚合、搜索和分析来自 Web3 世界的最新资讯。</p>
+    <div class="cta-buttons">
+        <a href="/search" class="cta-button cta-primary">开始搜索新闻</a>
+        <a href="/analyzer" class="cta-button cta-secondary">进行关键词分析</a>
+    </div>
+</div>
+{% endblock %}
