@@ -6,7 +6,7 @@ from collections import Counter
 from datetime import datetime, timedelta, timezone
 
 # ======= 配置参数 =======
-DB_PATH = r"E:\msc_proj\MscProject-NewsAgent2025\src\crawler\crpyto_news\historytest.db"
+DB_PATH = r"E:\msc_proj\MscProject-NewsAgent2025\src\crawler\crpyto_news\history.db"
 TABLE = "messages"
 KEYWORD_COLUMN = "keywords"
 CURRENCY_COLUMN = "industry"
@@ -357,24 +357,24 @@ def main():
     print("\n[1/4] 读取关键词数据...")
     keyword_rows = analyzer.fetch_column_data(analyzer.keyword_column, channel_ids=channel_ids, time_range=time_range)
     keyword_counter, keyword_occurrence = analyzer.count_items_with_occurrence(keyword_rows, case_insensitive=True)
-    analyzer.print_counter_with_ratio(
-        keyword_counter,
-        keyword_occurrence,
-        total_rows,
-        "关键词统计 (Keywords)",
-        top_n=50
-    )
+    # analyzer.print_counter_with_ratio(
+    #     keyword_counter,
+    #     keyword_occurrence,
+    #     total_rows,
+    #     "关键词统计 (Keywords)",
+    #     top_n=50
+    # )
 
     print("\n[2/4] 读取币种数据...")
     currency_rows = analyzer.fetch_column_data(analyzer.currency_column)
     currency_counter, currency_occurrence = analyzer.count_items_with_occurrence(currency_rows, case_insensitive=True)
-    analyzer.print_counter_with_ratio(
-        currency_counter,
-        currency_occurrence,
-        total_rows,
-        "币种统计 (Currency)",
-        top_n=None
-    )
+    # analyzer.print_counter_with_ratio(
+    #     currency_counter,
+    #     currency_occurrence,
+    #     total_rows,
+    #     "币种统计 (Currency)",
+    #     top_n=None
+    # )
 
     print("\n[3/4] 加载 spaCy 模型...")
     nlp = analyzer.load_spacy_model()

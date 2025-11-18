@@ -15,7 +15,7 @@ channels:
   - "@TechFlowDaily"
 
 backfill_limit: 500
-sqlite_path: "stream.db"
+sqlite_path: "history.db"
 
 http:
   host: "127.0.0.1"
