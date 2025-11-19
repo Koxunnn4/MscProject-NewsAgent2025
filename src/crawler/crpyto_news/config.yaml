@@ -1,0 +1,31 @@
+session: "tg_session"
+api_id: 21418731
+api_hash: "388599319fac7e16bff0d202c9282cc8"
+
+proxy:
+  enabled: true
+  type: "http"
+  host: "127.0.0.1"
+  port: 7890
+
+channels:
+  - "@theblockbeats"
+  - "@news6551"
+  - "@MMSnews"
+  - "@TechFlowDaily"
+
+backfill_limit: 500
+sqlite_path: "stream.db"
+
+http:
+  host: "127.0.0.1"
+  port: 8008
+  max_items: 200
+
+redis:
+  host: "127.0.0.1"           # Redis服务器地址
+  port: 6379                  # Redis端口
+  stream_key: "news_stream"   # 存储新闻的Stream名称
+  consumer_group: "news_consumers"  # 消费者组名称
+  max_len: 1000              # Stream最大长度，超过后会删除旧消息
+  # sqlite_path: ".\\data\\history.db"
