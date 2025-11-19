@@ -58,7 +58,7 @@ class NewsSearchEngine:
             try:
                 cursor.execute(
                     """
-                    SELECT id, text, keywords, currency, date, url 
+                    SELECT id, channel_id, text, keywords, currency, date, url 
                     FROM messages 
                     WHERE text IS NOT NULL AND text != ''
                     ORDER BY date DESC
@@ -68,7 +68,7 @@ class NewsSearchEngine:
             except Exception:
                 cursor.execute(
                     """
-                    SELECT id, text, keywords, currency, date 
+                    SELECT id, channel_id, text, keywords, currency, date 
                     FROM messages 
                     WHERE text IS NOT NULL AND text != ''
                     ORDER BY date DESC
@@ -79,21 +79,26 @@ class NewsSearchEngine:
 
             for row in rows:
                 if has_url:
-                    news_id, text, keywords, currency, date, url = row
+                    news_id, channel_id, text, keywords, currency, date, url = row
                 else:
-                    news_id, text, keywords, currency, date = row
+                    news_id, channel_id, text, keywords, currency, date = row
                     url = ""
                 # 清理文本
                 cleaned_text = self._clean_text(text)
                 if cleaned_text:  # 只保留有效文本
+                    title = self._derive_title(text)
                     self.news_data.append({
                         'id': news_id,
+                        'channel_id': channel_id or '',
+                        'title': title,
                         'text': cleaned_text,
                         'original_text': text,
                         'keywords': keywords or '',
                         'currency': currency or '',
                         'date': date,
-                        'url': url or ''
+                        'url': url or '',
+                        'source': channel_id or 'Telegram',
+                        'source_type': 'crypto'
                     })
             
             conn.close()
@@ -102,6 +107,17 @@ class NewsSearchEngine:
         except Exception as e:
             logger.error(f"加载新闻数据失败: {e}")
             self.news_data = []
+
+    def _derive_title(self, text: str) -> str:
+        """根据新闻正文生成一个简短标题"""
+        if not text:
+            return "即时快讯"
+        try:
+            lines = [line.strip() for line in text.splitlines() if line.strip()]
+            candidate = lines[0] if lines else text.strip()
+            return candidate[:80]
+        except Exception:
+            return str(text)[:80]
     
     def _clean_text(self, text: str) -> str:
         """清理文本数据"""
@@ -181,6 +197,22 @@ class NewsSearchEngine:
         except Exception as e:
             logger.error(f"搜索失败: {e}")
             return []
+
+    def get_recent_news(self, limit: int = 20) -> List[Dict]:
+        """获取最新的新闻数据，用于无关键词的默认展示"""
+        if not self.news_data:
+            return []
+        try:
+            safe_limit = max(1, int(limit))
+        except Exception:
+            safe_limit = 20
+        recent_slice = self.news_data[:safe_limit]
+        results = []
+        for item in recent_slice:
+            news_copy = item.copy()
+            news_copy.setdefault('similarity_score', None)
+            results.append(news_copy)
+        return results
 
     
 

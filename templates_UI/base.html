@@ -21,7 +21,8 @@
     <nav class="navbar">
         <a class="navbar-brand" href="/">Web3 新闻分析平台</a>
         <div class="nav">
-            <a class="nav-link {% if request.url.path == '/' or request.url.path == '/search' %}active{% endif %}" href="/">新闻搜索</a>
+            {% set on_search_page = request.url.path in ['/', '/search'] %}
+            <a class="nav-link {% if on_search_page %}active{% endif %}" href="/search">新闻搜索</a>
             <a class="nav-link {% if request.url.path == '/analyzer' %}active{% endif %}" href="/analyzer">关键词分析</a>
         </div>
     </nav>

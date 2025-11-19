@@ -1,121 +1,149 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>搜索结果 - {{ keyword }}</title>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 24px; }
-    a { color: #2b6cb0; text-decoration: none; }
-    a:hover { text-decoration: underline; }
-    h1 { margin-bottom: 8px; }
-    .meta { color: #666; margin-bottom: 16px; }
-    .result { border: 1px solid #eee; padding: 12px; border-radius: 8px; margin-bottom: 12px; }
-    .result .date { color: #666; font-size: 14px; }
-    .result .summary { margin-top: 8px; font-weight: 500; }
-    .result .orig { color: #444; margin-top: 8px; }
-    .trend { margin-top: 24px; }
-    .sidebar { margin-top: 24px; }
-    .kw-list { display: flex; flex-wrap: wrap; gap: 8px; }
-    .kw-item { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 6px; color: #fff; background: #2b6cb0; }
-    .kw-item:hover { filter: brightness(1.05); }
-    .kw-link { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 6px; color: #2b6cb0; border: 1px solid #2b6cb0; text-decoration: none; }
-  </style>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-</head>
-<body>
-  <a href="/">← 返回首页</a>
-  <div class="container">
-    <h1>关键词：{{ keyword }}</h1>
+{% extends "base.html" %}
 
-    <!-- 热门关键词置顶筛选 -->
-    <div class="hot-keywords" style="margin: 12px 0 16px 0;">
-      {% if top_keywords_counts %}
-        {% for item in top_keywords_counts %}
-          {% set kw = item['keyword'] %}
-          {% set count = item['count'] %}
-          {% set denom = (max_count - min_count) if (max_count - min_count) != 0 else 1 %}
-          {% set frac = (count - min_count) / denom %}
-          {% set lightness = (85 - 20 * frac) | int %}
-          {% if loop.index <= 5 %}
-            <a class="kw-item" href="/search?keyword={{ kw }}&top_k=5" style="background-color: hsl(10, 80%, {{ lightness }}%); color: #333;">{{ kw }}</a>
-          {% else %}
-            <a class="kw-link" href="/search?keyword={{ kw }}&top_k=5">{{ kw }}</a>
-          {% endif %}
-        {% endfor %}
-      {% else %}
-        <em>暂无关键词数据</em>
-      {% endif %}
-    </div>
-  
-    <!-- 结果列表 -->
-    <div class="results">
-      <div class="meta">共有 {{ total_results }} 条结果</div>
-      {% if results %}
-        {% for news in results %}
-          <div class="result">
-            <div class="date">日期：{{ news["date"] }}</div>
-            <div class="summary">摘要：{{ news["summary"] }}</div>
-            <div class="orig">原文：{{ news["original_text"] }}</div>
-          </div>
-        {% endfor %}
-      {% else %}
-        <em>没有找到相关的新闻。</em>
-      {% endif %}
-    </div>
-  
-    <!-- 趋势图 -->
-    <div class="trend" style="margin-top: 24px;">
-      <h2>关键词日趋势</h2>
-      <canvas id="trendChart" width="800" height="140"></canvas>
-    </div>
+{% block title %}{{ source_label }} · {{ keyword_heading or '新闻搜索' }}{% endblock %}
 
+{% block head %}
+<style>
+    .search-hero { background: white; border-radius: 16px; padding: 32px; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08); margin-bottom: 24px; }
+    .search-form { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+    .search-input { flex: 1; min-width: 220px; padding: 12px 16px; border-radius: 10px; border: 1px solid #CBD5F5; font-size: 1rem; }
+    .search-select { padding: 12px 16px; border-radius: 10px; border: 1px solid #CBD5F5; font-size: 0.95rem; background: #fff; }
+    .search-button { padding: 12px 24px; border-radius: 10px; border: none; background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; font-weight: 600; cursor: pointer; }
+    .search-button:hover { opacity: 0.95; }
+    .meta-line { color: #4a5568; margin-top: 12px; }
+    .keyword-cloud { display: flex; flex-wrap: wrap; gap: 10px; margin: 24px 0; }
+    .keyword-chip { padding: 6px 14px; border-radius: 999px; font-size: 0.9rem; text-decoration: none; border: 1px solid transparent; transition: transform 0.2s; }
+    .keyword-chip:hover { transform: translateY(-2px); }
+    .page-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 24px; }
+    .news-card { background: white; border-radius: 16px; padding: 20px; margin-bottom: 20px; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08); }
+    .news-card__meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 0.85rem; color: #64748b; margin-bottom: 8px; }
+    .badge { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+    .badge-source { background: rgba(102, 126, 234, 0.15); color: #4c51bf; }
+    .badge-muted { border: 1px solid #e2e8f0; color: #4a5568; }
+    .news-card h3 { margin: 8px 0 12px; font-size: 1.25rem; color: #1a202c; }
+    .news-card p { margin: 0 0 12px; color: #2d3748; line-height: 1.6; }
+    .news-card__footer { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+    .keyword-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+    .keyword-tag { padding: 4px 8px; background: #edf2f7; border-radius: 6px; font-size: 0.8rem; }
+    .trend-card { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08); margin-bottom: 24px; }
+    .empty-state { background: white; border-radius: 16px; padding: 40px; text-align: center; color: #718096; }
+    @media (max-width: 1024px) { .page-layout { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
 
-  </div>
-  
-  <style>
-    .container { max-width: 900px; margin: 0 auto; padding: 16px; }
-    .layout { display: flex; align-items: flex-start; gap: 24px; }
-    .main { flex: 1; }
-    .sidebar { width: 240px; }
-    .hot-keywords { display: flex; flex-wrap: wrap; gap: 6px; }
-    .kw-link { text-decoration: none; }
-    .kw-item { display: inline-block; padding: 4px 10px; border-radius: 12px; color: #333; }
-    .kw-list { display: flex; flex-direction: column; gap: 8px; }
-    .meta { color: #666; margin-bottom: 8px; }
-    .result-card { border: 1px solid #eee; padding: 10px; border-radius: 8px; margin-bottom: 10px; }
-    .date { font-size: 12px; color: #999; margin-bottom: 6px; }
-    .summary { margin-bottom: 6px; }
-    .link a { color: #0a66c2; }
-  </style>
-  
-  <script>
+{% block content %}
+<section class="search-hero">
+    <h1 style="margin-bottom: 16px;">{{ source_label }} · {{ keyword_heading or '新闻搜索' }}</h1>
+    <form class="search-form" method="get" action="/search">
+        <input type="text" class="search-input" name="keyword" value="{{ search_value or '' }}" placeholder="输入想追踪的关键词">
+        <select name="source" class="search-select">
+            {% for opt in available_sources %}
+                <option value="{{ opt.key }}" {% if opt.key == source %}selected{% endif %}>{{ opt.label }}</option>
+            {% endfor %}
+        </select>
+        <button class="search-button" type="submit">立即搜索</button>
+    </form>
+    <p class="meta-line">{{ result_summary or ('共 ' ~ total_results ~ ' 条结果') }} · 数据源：{{ source_label }}</p>
+</section>
+
+<section>
+    <h2 style="font-size: 1rem; color: #4a5568; margin-bottom: 8px;">热门关键词</h2>
+    <div class="keyword-cloud">
+        {% if top_keywords_counts %}
+            {% for item in top_keywords_counts %}
+                {% set kw = item['keyword'] %}
+                {% set count = item['count'] %}
+                {% set denom = (max_count - min_count) if (max_count - min_count) != 0 else 1 %}
+                {% set frac = (count - min_count) / denom %}
+                {% set hue = 200 - (80 * frac) %}
+                <a class="keyword-chip" href="/search?keyword={{ kw }}&source={{ source }}" style="background-color: hsl({{ hue }}, 70%, 92%); border-color: hsl({{ hue }}, 70%, 75%); color: #1a202c;">
+                    {{ kw }} · {{ count }}
+                </a>
+            {% endfor %}
+        {% else %}
+            <span class="keyword-chip" style="background: #edf2f7; color: #718096;">暂无关键词</span>
+        {% endif %}
+    </div>
+</section>
+
+<div class="page-layout">
+    <div>
+        {% if results %}
+            {% for news in results %}
+                <article class="news-card">
+                    <div class="news-card__meta">
+                        <span class="badge badge-source">{{ news.source_badge }}</span>
+                        <span class="badge badge-muted">{{ news.source }}</span>
+                        <span>{{ news.date }}</span>
+                        {% if news.similarity_score %}
+                            <span style="color:#805ad5; font-weight:600;">相关度 {{ '{:.2f}'.format(news.similarity_score) }}</span>
+                        {% endif %}
+                    </div>
+                    <h3>{{ news.title }}</h3>
+                    {% if news.url %}
+                        <p style="margin-bottom: 8px;"><a href="{{ news.url }}" target="_blank">查看原文链接 ↗</a></p>
+                    {% endif %}
+                    <p><strong>摘要：</strong>{{ news.summary or '暂无摘要' }}</p>
+                    <details style="margin-top: 8px;">
+                        <summary style="cursor:pointer; color:#4a5568;">展开原文</summary>
+                        <p style="white-space: pre-wrap; margin-top: 8px;">{{ news.original_text }}</p>
+                    </details>
+                    {% if news.keyword_list %}
+                        <div class="news-card__footer">
+                            <div class="keyword-tags">
+                                {% for kw in news.keyword_list %}
+                                    <span class="keyword-tag">{{ kw }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endif %}
+                </article>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <p>没有找到相关新闻，可以尝试更换关键词或切换数据源。</p>
+            </div>
+        {% endif %}
+    </div>
+    <aside>
+        <div class="trend-card">
+            <h3 style="margin-bottom: 12px;">关键词日趋势</h3>
+            <canvas id="trendChart" height="220"></canvas>
+        </div>
+    </aside>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
     const labels = JSON.parse('{{ trend_labels | safe }}');
     const counts = JSON.parse('{{ trend_counts | safe }}');
-    const ctx = document.getElementById('trendChart').getContext('2d');
-    const chart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: labels,
-        datasets: [{
-          label: '每日热度',
-          data: counts,
-          borderColor: '#e67e22',
-          backgroundColor: 'rgba(230, 126, 34, 0.15)',
-          tension: 0.3,
-          pointRadius: 1,
-          borderWidth: 2
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: { legend: { display: false } },
-        scales: {
-          x: { ticks: { maxRotation: 0, autoSkip: true } },
-          y: { beginAtZero: true }
-        }
-      }
-    });
-  </script>
-</body>
-</html>
+    if (labels.length && counts.length) {
+        const ctx = document.getElementById('trendChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: '每日热度',
+                    data: counts,
+                    borderColor: '#667eea',
+                    backgroundColor: 'rgba(102, 126, 234, 0.15)',
+                    tension: 0.35,
+                    pointRadius: 2,
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { ticks: { autoSkip: true, maxRotation: 0 } },
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+    }
+</script>
+{% endblock %}

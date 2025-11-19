@@ -181,6 +181,14 @@ body {
     flex: 1;
 }
 
+.channels-hint {
+    color: var(--text-light);
+    font-style: italic;
+    font-size: 0.9em;
+    text-align: center;
+    margin: 10px 0;
+}
+
 /* ===== 按钮 ===== */
 .btn {
     padding: 12px 30px;

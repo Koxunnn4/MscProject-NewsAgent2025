@@ -4,14 +4,16 @@ from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 import uvicorn
 from news_search import NewsSearchEngine
+from hkstocks_search import HKStocksSearchEngine
 import logging
-from typing import Optional, List
+from typing import Optional, List, Dict
 import json
 import os
 import sys
 from collections import Counter
 import re
 from datetime import datetime, timedelta
+from config import HISTORY_DB_PATH
 
 # --- Start of web_analyzer integration ---
 
@@ -38,72 +40,194 @@ CHANNEL_MAP = {
     "4": ("-1002117032512", "@MMSnews"),
 }
 
-class WebSimilarityAnalyzer:
-    """
-    Web 版本的相似度分析器
-    基于 SimilarityAnalyzer 的包装，提供 Web API 所需的接口
-    """
-    def __init__(self, db_path=r"src/crawler/crpyto_news/stream.db", table="messages",
-                 keyword_column="keywords", currency_column="industry",
-                 min_count=5, top_n=100):
-        self.db_path = db_path
-        self.table = table
-        self.keyword_column = keyword_column
-        self.currency_column = currency_column
-        self.min_count = min_count
-        self.top_n = top_n
+SOURCE_OPTIONS = [
+    {"key": "crypto", "label": "Web3 新闻"},
+    {"key": "hkstocks", "label": "港股新闻"}
+]
+SOURCE_LABEL_MAP = {item["key"]: item["label"] for item in SOURCE_OPTIONS}
+DEFAULT_SOURCE = "crypto"
+SOURCE_BADGES = {"crypto": "Web3", "hkstocks": "港股"}
 
-        if ANALYZER_AVAILABLE:
-            try:
-                self.analyzer = SimilarityAnalyzer(
-                    db_path=db_path, table=table, keyword_column=keyword_column,
-                    currency_column=currency_column, min_count=min_count, top_n=top_n
-                )
-                logging.info(f"✓ 分析器初始化成功 | 数据库: {db_path}")
-            except Exception as e:
-                logging.error(f"✗ 分析器初始化失败: {e}")
-                self.analyzer = None
+
+def normalize_source(source: Optional[str]) -> str:
+    if not source:
+        return DEFAULT_SOURCE
+    key = str(source).lower()
+    return key if key in SOURCE_LABEL_MAP else DEFAULT_SOURCE
+
+
+_search_engine_cache: Dict[str, NewsSearchEngine] = {}
+
+
+def get_search_engine(source_key: str) -> NewsSearchEngine:
+    key = normalize_source(source_key)
+    if key not in _search_engine_cache:
+        if key == "hkstocks":
+            _search_engine_cache[key] = HKStocksSearchEngine(db_path=HISTORY_DB_PATH)
         else:
-            self.analyzer = None
+            _search_engine_cache[key] = NewsSearchEngine(db_path=HISTORY_DB_PATH)
+    return _search_engine_cache[key]
 
-    def get_total_rows(self, channel_ids=None, time_range=None):
-        if not self.analyzer: return 0
+
+def _split_keywords(raw_keywords: Optional[str]) -> List[str]:
+    return [k.strip() for k in str(raw_keywords or "").split(',') if k.strip()]
+
+
+def _enhance_news_results(results: List[Dict]):
+    for news in results:
+        news.setdefault('source_type', 'crypto')
+        news['source_badge'] = SOURCE_BADGES.get(news['source_type'], 'News')
+        news['keyword_list'] = _split_keywords(news.get('keywords', ''))
+        if not news.get('title'):
+            news['title'] = (news.get('text') or '')[:80]
+        news['source'] = news.get('source') or (news.get('channel_id') or 'Web3 Feed')
+
+class WebSimilarityAnalyzer:
+    """面向 Web 的多数据源相似度分析调度器"""
+
+    def __init__(self):
+        self.source_configs: Dict[str, Dict] = {}
+        if ANALYZER_AVAILABLE:
+            self._init_sources()
+        else:
+            logging.warning("SimilarityAnalyzer 模块不可用，关键词分析接口将被禁用")
+
+    def _init_sources(self):
+        configs: Dict[str, Dict] = {}
         try:
-            return self.analyzer.get_total_rows(channel_ids=channel_ids, time_range=time_range)
+            configs["crypto"] = {
+                "label": SOURCE_LABEL_MAP["crypto"],
+                "analyzer": SimilarityAnalyzer(
+                    db_path=r"src/crawler/crpyto_news/stream.db",
+                    table="messages",
+                    keyword_column="keywords",
+                    currency_column="industry",
+                    channel_column="channel_id",
+                    date_column="date",
+                    min_count=5,
+                    top_n=100
+                ),
+                "keyword_column": "keywords",
+                "currency_column": "industry",
+                "supports_channels": True,
+                "channels": CHANNEL_MAP
+            }
+
+            configs["hkstocks"] = {
+                "label": SOURCE_LABEL_MAP["hkstocks"],
+                "analyzer": SimilarityAnalyzer(
+                    db_path=HISTORY_DB_PATH,
+                    table="hkstocks_news",
+                    keyword_column="keywords",
+                    currency_column="industry",
+                    channel_column=None,
+                    date_column="publish_date",
+                    min_count=2,
+                    top_n=100
+                ),
+                "keyword_column": "keywords",
+                "currency_column": "industry",
+                "supports_channels": False,
+                "channels": {}
+            }
+            logging.info("✓ 多数据源分析器初始化完成")
+        except Exception as e:
+            logging.error(f"初始化分析器失败: {e}")
+        self.source_configs = configs
+
+    def _get_config(self, source_key: str) -> Optional[Dict]:
+        if not self.source_configs:
+            return None
+        return self.source_configs.get(source_key) or self.source_configs.get(DEFAULT_SOURCE)
+
+    def _get_analyzer(self, source_key: str):
+        config = self._get_config(source_key)
+        return config.get("analyzer") if config else None
+
+    def supports_channels(self, source_key: str) -> bool:
+        config = self._get_config(source_key)
+        return bool(config and config.get("supports_channels"))
+
+    def get_channels(self, source_key: str) -> List[Dict]:
+        config = self._get_config(source_key)
+        if not config:
+            return []
+        channels = config.get("channels", {})
+        return [
+            {'id': key, 'name': meta[1], 'channel_id': meta[0]}
+            for key, meta in channels.items()
+        ]
+
+    def _sanitize_channels(self, source_key: str, channel_ids: Optional[List[str]]) -> Optional[List[str]]:
+        if not channel_ids:
+            return None
+        if not self.supports_channels(source_key):
+            return None
+        return channel_ids
+
+    def get_keyword_column(self, source_key: str) -> str:
+        config = self._get_config(source_key)
+        return config.get("keyword_column", "keywords") if config else "keywords"
+
+    def get_currency_column(self, source_key: str) -> str:
+        config = self._get_config(source_key)
+        return config.get("currency_column", "industry") if config else "industry"
+
+    def get_total_rows(self, source_key: str, channel_ids=None, time_range=None):
+        analyzer = self._get_analyzer(source_key)
+        if not analyzer:
+            return 0
+        try:
+            return analyzer.get_total_rows(
+                channel_ids=self._sanitize_channels(source_key, channel_ids),
+                time_range=time_range
+            )
         except Exception as e:
             logging.error(f"获取总行数失败: {e}")
             return 0
 
-    def fetch_column_data(self, column, channel_ids=None, time_range=None):
-        if not self.analyzer: return []
+    def fetch_column_data(self, source_key: str, column: str, channel_ids=None, time_range=None):
+        analyzer = self._get_analyzer(source_key)
+        if not analyzer:
+            return []
         try:
-            return self.analyzer.fetch_column_data(column=column, channel_ids=channel_ids, time_range=time_range)
+            return analyzer.fetch_column_data(
+                column=column,
+                channel_ids=self._sanitize_channels(source_key, channel_ids),
+                time_range=time_range
+            )
         except Exception as e:
             logging.error(f"读取列数据失败: {e}")
             return []
 
-    def count_items_with_occurrence(self, rows, case_insensitive=True):
-        if not self.analyzer: return Counter(), Counter()
+    def count_items_with_occurrence(self, source_key: str, rows, case_insensitive=True):
+        analyzer = self._get_analyzer(source_key)
+        if not analyzer:
+            return Counter(), Counter()
         try:
-            return self.analyzer.count_items_with_occurrence(rows=rows, case_insensitive=case_insensitive)
+            return analyzer.count_items_with_occurrence(rows=rows, case_insensitive=case_insensitive)
         except Exception as e:
             logging.error(f"统计项目出现次数失败: {e}")
             return Counter(), Counter()
 
-    def calculate_similarity(self, keyword_counter, limit=None):
-        if not self.analyzer: return []
+    def calculate_similarity(self, source_key: str, keyword_counter, limit=None):
+        analyzer = self._get_analyzer(source_key)
+        if not analyzer:
+            return []
         try:
-            pairs = self.analyzer.calculate_similarity(keyword_counter)
-            limit = limit or self.top_n
+            pairs = analyzer.calculate_similarity(keyword_counter)
+            limit = limit or analyzer.top_n
             return pairs[:limit]
         except Exception as e:
             logging.error(f"计算相似度失败: {e}")
             return []
 
-    def query_keyword_similarity(self, input_keyword, keyword_counter):
-        if not self.analyzer: return False, []
+    def query_keyword_similarity(self, source_key: str, input_keyword, keyword_counter):
+        analyzer = self._get_analyzer(source_key)
+        if not analyzer:
+            return False, []
         try:
-            return self.analyzer.query_keyword_similarity(
+            return analyzer.query_keyword_similarity(
                 input_keyword=input_keyword, keyword_counter=keyword_counter, top_n=10
             )
         except Exception as e:
@@ -120,7 +244,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # 创建FastAPI应用
-app = FastAPI(title="Web3新闻分析平台", description="一个集新闻搜索与关键词分析于一体的平台")
+app = FastAPI(title="Web3&HK Stocks新闻分析平台", description="一个集新闻搜索与关键词分析于一体的平台")
 
 # 挂载 static 文件夹
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -128,31 +252,16 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # 配置模板目录
 templates = Jinja2Templates(directory="templates_UI")
 
-# 初始化搜索引擎
-search_engine = NewsSearchEngine()
-
 # 主页
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
-    return templates.TemplateResponse("home.html", {"request": request})
+    return templates.TemplateResponse("home.html", {"request": request, "source_options": SOURCE_OPTIONS})
 
 # 新闻搜索页面
 @app.get("/search", response_class=HTMLResponse)
-async def search_page(request: Request, keyword: Optional[str] = None, top_k: int = 5):
-    if keyword:
-        return await search_news_get(request, keyword, top_k)
-    
-    top_keywords_counts = search_engine.get_top_keywords_with_counts(20)
-    default_keyword = top_keywords_counts[0]["keyword"] if top_keywords_counts else ""
-    
-    if default_keyword:
-        return await search_news_get(request, default_keyword, top_k)
-    
-    return templates.TemplateResponse("search_results.html", {
-        "request": request, "keyword": "无", "results": [], "top_keywords_counts": [],
-        "max_count": 1, "min_count": 0, "total_results": 0, 
-        "trend_labels": "[]", "trend_counts": "[]"
-    })
+async def search_page(request: Request, keyword: Optional[str] = None,
+                      source: str = DEFAULT_SOURCE):
+    return await search_news_get(request, keyword or "", source)
 
 # 关键词分析器页面
 @app.get("/analyzer", response_class=HTMLResponse)
@@ -163,20 +272,48 @@ async def analyzer_page(request: Request):
 # --- API for News Search ---
 
 @app.get("/search_action", response_class=HTMLResponse)
-async def search_news_get(request: Request, keyword: str, top_k: int = 5):
+async def search_news_get(request: Request, keyword: str = "",
+                          source: str = DEFAULT_SOURCE):
     try:
-        results = search_engine.search_by_keyword(keyword, top_k)
+        source_key = normalize_source(source)
+        engine = get_search_engine(source_key)
+
+        raw_keyword = keyword or ""
+        clean_keyword = raw_keyword.strip()
+        keyword_mode = bool(clean_keyword)
+
+        if keyword_mode:
+            results = engine.search_by_keyword(clean_keyword)
+            keyword_heading = f"关键词 “{clean_keyword}”"
+            result_summary = f"共 {len(results)} 条结果"
+        else:
+            results = engine.get_recent_news(limit=20)
+            keyword_heading = "最新快讯"
+            result_summary = f"展示最新 {len(results)} 条资讯"
+
         for news in results:
-            news['summary'] = search_engine.generate_summary(news['original_text'])
-        top_keywords_counts = search_engine.get_top_keywords_with_counts(20)
+            news['summary'] = engine.generate_summary(news['original_text'])
+
+        _enhance_news_results(results)
+
+        top_keywords_counts = engine.get_top_keywords_with_counts(20)
         max_count = max([item["count"] for item in top_keywords_counts]) if top_keywords_counts else 1
         min_count = min([item["count"] for item in top_keywords_counts]) if top_keywords_counts else 0
-        trend_day = search_engine.get_keyword_trend(keyword, granularity="day")
-        trend_labels = json.dumps([p['time'] for p in trend_day], ensure_ascii=False)
-        trend_counts = json.dumps([p['count'] for p in trend_day], ensure_ascii=False)
+
+        if keyword_mode:
+            trend_day = engine.get_keyword_trend(clean_keyword, granularity="day")
+            trend_labels = json.dumps([p['time'] for p in trend_day], ensure_ascii=False)
+            trend_counts = json.dumps([p['count'] for p in trend_day], ensure_ascii=False)
+        else:
+            trend_labels = "[]"
+            trend_counts = "[]"
+
         return templates.TemplateResponse("search_results.html", {
             "request": request,
-            "keyword": keyword,
+            "keyword": clean_keyword,
+            "keyword_heading": keyword_heading,
+            "has_keyword": keyword_mode,
+            "result_summary": result_summary,
             "results": results,
             "top_keywords_counts": top_keywords_counts,
             "max_count": max_count,
@@ -184,6 +321,10 @@ async def search_news_get(request: Request, keyword: str, top_k: int = 5):
             "total_results": len(results),
             "trend_labels": trend_labels,
             "trend_counts": trend_counts,
+            "source": source_key,
+            "source_label": SOURCE_LABEL_MAP[source_key],
+            "available_sources": SOURCE_OPTIONS,
+            "search_value": clean_keyword
         })
     except Exception as e:
         logger.error(f"搜索出错: {e}")
@@ -193,45 +334,63 @@ async def search_news_get(request: Request, keyword: str, top_k: int = 5):
         })
 
 @app.post("/search_action", response_class=HTMLResponse)
-async def search_news_post(request: Request, keyword: str = Form(...), top_k: int = Form(5)):
-    return await search_news_get(request, keyword, top_k)
+async def search_news_post(request: Request, keyword: str = Form(...),
+                           source: str = Form(DEFAULT_SOURCE)):
+    return await search_news_get(request, keyword, source)
 
 # --- APIs for Keyword Analyzer ---
 
 analyzer_router = APIRouter(prefix="/api")
 
 @analyzer_router.get("/channels")
-async def get_channels():
+async def get_channels(source: str = DEFAULT_SOURCE):
     """获取可用频道列表"""
-    channels = [{'id': k, 'name': v[1], 'channel_id': v[0]} for k, v in CHANNEL_MAP.items()]
-    return JSONResponse(content={'channels': channels})
+    source_key = normalize_source(source)
+    channels = web_analyzer.get_channels(source_key)
+    return JSONResponse(content={
+        'channels': channels,
+        'supports_channels': web_analyzer.supports_channels(source_key)
+    })
 
 @analyzer_router.post("/analyze")
 async def analyze_data(request: Request):
     """分析数据的主要接口"""
     try:
         data = await request.json()
-        channel_ids = data.get('channel_ids', [])
+        source_key = normalize_source(data.get('data_source'))
+        channel_ids = data.get('channel_ids', []) or None
+        if not web_analyzer.supports_channels(source_key):
+            channel_ids = None
         time_range_str = data.get('time_range')
 
-        logger.info(f"\n📊 开始分析...")
+        logger.info(f"\n📊 开始分析 {SOURCE_LABEL_MAP.get(source_key, source_key)} 数据...")
         logger.info(f"   频道 ID: {channel_ids}")
         logger.info(f"   时间范围: {time_range_str}")
 
-        total_rows = web_analyzer.get_total_rows(channel_ids or None, time_range_str)
+        total_rows = web_analyzer.get_total_rows(source_key, channel_ids, time_range_str)
         logger.info(f"✓ 总行数: {total_rows}")
 
-        keyword_rows = web_analyzer.fetch_column_data(web_analyzer.keyword_column, channel_ids or None, time_range_str)
+        keyword_rows = web_analyzer.fetch_column_data(
+            source_key,
+            web_analyzer.get_keyword_column(source_key),
+            channel_ids,
+            time_range_str
+        )
         logger.info(f"✓ 读取关键词行数: {len(keyword_rows)}")
-        keyword_counter, keyword_occurrence = web_analyzer.count_items_with_occurrence(keyword_rows)
+        keyword_counter, keyword_occurrence = web_analyzer.count_items_with_occurrence(source_key, keyword_rows)
         logger.info(f"✓ 关键词种类: {len(keyword_counter)}")
 
-        currency_rows = web_analyzer.fetch_column_data(web_analyzer.currency_column, channel_ids or None, time_range_str)
+        currency_rows = web_analyzer.fetch_column_data(
+            source_key,
+            web_analyzer.get_currency_column(source_key),
+            channel_ids,
+            time_range_str
+        )
         logger.info(f"✓ 读取币种行数: {len(currency_rows)}")
-        currency_counter, currency_occurrence = web_analyzer.count_items_with_occurrence(currency_rows)
+        currency_counter, currency_occurrence = web_analyzer.count_items_with_occurrence(source_key, currency_rows)
         logger.info(f"✓ 币种种类: {len(currency_counter)}")
 
-        similarity_pairs = web_analyzer.calculate_similarity(keyword_counter, limit=50)
+        similarity_pairs = web_analyzer.calculate_similarity(source_key, keyword_counter, limit=50)
         similarity_results = [
             {'word1': a, 'count1': ca, 'word2': b, 'count2': cb, 'similarity': round(s, 4)}
             for a, ca, b, cb, s in similarity_pairs
@@ -251,9 +410,13 @@ async def analyze_data(request: Request):
 
         logger.info("✅ 分析完成\n")
         return JSONResponse(content={
-            'success': True, 'total_rows': total_rows, 'keyword_stats': keyword_stats,
-            'currency_stats': currency_stats, 'similarity_results': similarity_results,
-            'keyword_total': len(keyword_counter), 'currency_total': len(currency_counter)
+            'success': True,
+            'total_rows': total_rows,
+            'keyword_stats': keyword_stats,
+            'currency_stats': currency_stats,
+            'similarity_results': similarity_results,
+            'keyword_total': len(keyword_counter),
+            'currency_total': len(currency_counter)
         })
     except Exception as e:
         logger.error(f"❌ 分析失败: {e}\n")
@@ -266,18 +429,26 @@ async def query_keyword_similarity(request: Request):
     """查询关键词相似度"""
     try:
         data = await request.json()
+        source_key = normalize_source(data.get('data_source'))
         keyword = data.get('keyword', '').strip()
-        channel_ids = data.get('channel_ids', [])
+        channel_ids = data.get('channel_ids', []) or None
+        if not web_analyzer.supports_channels(source_key):
+            channel_ids = None
         time_range = data.get('time_range')
 
         logger.info(f"\n🔍 查询请求: '{keyword}'")
         if not keyword:
             return JSONResponse(status_code=400, content={'success': False, 'error': '请输入关键词'})
 
-        keyword_rows = web_analyzer.fetch_column_data(web_analyzer.keyword_column, channel_ids or None, time_range)
-        keyword_counter, _ = web_analyzer.count_items_with_occurrence(keyword_rows)
+        keyword_rows = web_analyzer.fetch_column_data(
+            source_key,
+            web_analyzer.get_keyword_column(source_key),
+            channel_ids,
+            time_range
+        )
+        keyword_counter, _ = web_analyzer.count_items_with_occurrence(source_key, keyword_rows)
         
-        exists, top_similar = web_analyzer.query_keyword_similarity(keyword, keyword_counter)
+        exists, top_similar = web_analyzer.query_keyword_similarity(source_key, keyword, keyword_counter)
         similar_results = [{'word': word, 'count': count, 'similarity': round(similarity, 4)} for word, count, similarity in top_similar]
 
         logger.info(f"✅ 查询完成，找到 {len(similar_results)} 个相似词\n")
