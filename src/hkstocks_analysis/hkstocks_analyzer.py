@@ -30,6 +30,11 @@ class HKStocksAnalyzer:
         self.nlp = None
         self.stopwords = set()
         self.industries = []  # Industry definitions
+        self.default_industry = {
+            'id': '99',
+            'name_zh': '其他',
+            'name_en': 'Others'
+        }
         self._initialize_models()
         self._load_stopwords()
         self._load_industries()
@@ -160,7 +165,7 @@ class HKStocksAnalyzer:
 
         return True
 
-    def extract_keywords(self, text: str, top_n: int = 10) -> List[Tuple[str, float]]:
+    def extract_keywords(self, text: str, top_n: int = 5) -> List[Tuple[str, float]]:
         """
         Extract keywords from text using KeyBERT
 
@@ -181,6 +186,8 @@ class HKStocksAnalyzer:
             return []
 
         try:
+            # Ensure我们最多返回5个关键词
+            top_n = min(top_n or 5, 5)
             # Configure vectorizer with custom tokenizer
             vectorizer = CountVectorizer(
                 tokenizer=self.tokenize_and_filter,
@@ -196,7 +203,7 @@ class HKStocksAnalyzer:
                 diversity=0.3  # Balance between relevance and diversity
             )
 
-            return keywords
+            return keywords[:top_n]
 
         except Exception as e:
             print(f"Error extracting keywords: {e}")
@@ -255,6 +262,21 @@ class HKStocksAnalyzer:
             else:
                 print(f"Loaded {len(self.industries)} industry definitions")
 
+            # 记录“其他”行业配置，若不存在则保持默认
+            fallback = next(
+                (
+                    industry for industry in self.industries
+                    if industry.get('name_zh') == '其他' or industry.get('id') == '99'
+                ),
+                None
+            )
+            if fallback:
+                self.default_industry = {
+                    'id': fallback.get('id', '99'),
+                    'name_zh': fallback.get('name_zh', '其他'),
+                    'name_en': fallback.get('name_en', 'Others')
+                }
+
         except Exception as e:
             print(f"Error loading industries: {e}")
             self.industries = []
@@ -275,15 +297,18 @@ class HKStocksAnalyzer:
             List of (industry_id, industry_name_zh, match_count) tuples
             Sorted by match count in descending order
         """
-        if not text or not self.industries:
-            return []
+        if not text:
+            return [(self.default_industry['id'], self.default_industry['name_zh'], 0)]
+
+        if not self.industries:
+            return [(self.default_industry['id'], self.default_industry['name_zh'], 0)]
 
         try:
             # Preprocess text
             text = self._preprocess_text(text)
 
             if len(text) < 10:
-                return []
+                return [(self.default_industry['id'], self.default_industry['name_zh'], 0)]
 
             # Count keyword matches for each industry
             industry_scores: Dict[int, int] = {}  # index -> match_count
@@ -315,11 +340,15 @@ class HKStocksAnalyzer:
                 industry_name = industry.get('name_zh', '')
                 results.append((industry_id, industry_name, match_count))
 
-            return results
+            if results:
+                return results
+
+            # 兜底返回“其他”
+            return [(self.default_industry['id'], self.default_industry['name_zh'], 0)]
 
         except Exception as e:
             print(f"Error identifying industry: {e}")
-            return []
+            return [(self.default_industry['id'], self.default_industry['name_zh'], 0)]
 
 
 # Singleton instance

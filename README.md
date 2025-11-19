@@ -145,7 +145,11 @@ python main.py api
 python main.py interactive
 ```
 
-## 📊 核心功能
+## � 文档
+
+- [港股新闻采集与分析指南](HKSTOCKS_PIPELINE_GUIDE.md)：涵盖环境准备、Selenium 配置、生产者-消费者爬虫、关键词/行业分析与排障，适用于 HKStocks 全流程。
+
+## �📊 核心功能
 
 ### Task 1 & 2: 关键词提取与新闻检索
 
