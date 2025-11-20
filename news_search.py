@@ -38,7 +38,7 @@ class NewsSearchEngine:
         self.summary_max_len = 84
         try:
             model_id = "csebuetnlp/mT5_multilingual_XLSum"
-            self.t5_tokenizer = AutoTokenizer.from_pretrained(model_id)
+            self.t5_tokenizer = AutoTokenizer.from_pretrained(model_id, use_fast=False)
             self.t5_model = AutoModelForSeq2SeqLM.from_pretrained(model_id)
         except Exception as e:
             logger.error(f"加载中文摘要模型失败: {e}")
@@ -58,7 +58,7 @@ class NewsSearchEngine:
             try:
                 cursor.execute(
                     """
-                    SELECT id, text, keywords, currency, date, url 
+                    SELECT id, channel_id, text, keywords, currency, date, url 
                     FROM messages 
                     WHERE text IS NOT NULL AND text != ''
                     ORDER BY date DESC
@@ -68,7 +68,7 @@ class NewsSearchEngine:
             except Exception:
                 cursor.execute(
                     """
-                    SELECT id, text, keywords, currency, date 
+                    SELECT id, channel_id, text, keywords, currency, date 
                     FROM messages 
                     WHERE text IS NOT NULL AND text != ''
                     ORDER BY date DESC
@@ -79,21 +79,26 @@ class NewsSearchEngine:
 
             for row in rows:
                 if has_url:
-                    news_id, text, keywords, currency, date, url = row
+                    news_id, channel_id, text, keywords, currency, date, url = row
                 else:
-                    news_id, text, keywords, currency, date = row
+                    news_id, channel_id, text, keywords, currency, date = row
                     url = ""
                 # 清理文本
                 cleaned_text = self._clean_text(text)
                 if cleaned_text:  # 只保留有效文本
+                    title = self._derive_title(text)
                     self.news_data.append({
                         'id': news_id,
+                        'channel_id': channel_id or '',
+                        'title': title,
                         'text': cleaned_text,
                         'original_text': text,
                         'keywords': keywords or '',
                         'currency': currency or '',
                         'date': date,
-                        'url': url or ''
+                        'url': url or '',
+                        'source': channel_id or 'Telegram',
+                        'source_type': 'crypto'
                     })
             
             conn.close()
@@ -102,6 +107,17 @@ class NewsSearchEngine:
         except Exception as e:
             logger.error(f"加载新闻数据失败: {e}")
             self.news_data = []
+
+    def _derive_title(self, text: str) -> str:
+        """根据新闻正文生成一个简短标题"""
+        if not text:
+            return "即时快讯"
+        try:
+            lines = [line.strip() for line in text.splitlines() if line.strip()]
+            candidate = lines[0] if lines else text.strip()
+            return candidate[:80]
+        except Exception:
+            return str(text)[:80]
     
     def _clean_text(self, text: str) -> str:
         """清理文本数据"""
@@ -181,6 +197,22 @@ class NewsSearchEngine:
         except Exception as e:
             logger.error(f"搜索失败: {e}")
             return []
+
+    def get_recent_news(self, limit: int = 20) -> List[Dict]:
+        """获取最新的新闻数据，用于无关键词的默认展示"""
+        if not self.news_data:
+            return []
+        try:
+            safe_limit = max(1, int(limit))
+        except Exception:
+            safe_limit = 20
+        recent_slice = self.news_data[:safe_limit]
+        results = []
+        for item in recent_slice:
+            news_copy = item.copy()
+            news_copy.setdefault('similarity_score', None)
+            results.append(news_copy)
+        return results
 
     
 
@@ -276,27 +308,39 @@ class NewsSearchEngine:
             return "模型不可用"
 
     def _parse_date_str(self, date_str: str):
-        try:
-            if not date_str:
-                return None
-        except Exception:
+        """
+        兼容多种日期格式，包括ISO 8601（带/不带时区）、常规格式等。
+        """
+        if not date_str:
             return None
-        # Try common formats
-        for fmt in ("%Y-%m-%d %H:%M:%S%z", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
-            try:
-                return datetime.strptime(str(date_str), fmt)
-            except Exception:
-                pass
-        # ISO 8601 (including 'Z')
+        s = str(date_str).strip()
+        # 1. 直接尝试fromisoformat（Python 3.7+）
         try:
-            s = str(date_str).replace("Z", "+00:00")
+            # 替换Z为+00:00
+            if s.endswith('Z'):
+                s = s[:-1] + '+00:00'
             return datetime.fromisoformat(s)
         except Exception:
             pass
-        # Fallback: extract YYYY-MM-DD
+        # 2. 尝试去掉时区部分
+        try:
+            if '+' in s:
+                s2 = s.split('+')[0]
+                return datetime.strptime(s2, "%Y-%m-%dT%H:%M:%S")
+            if 'T' in s:
+                return datetime.strptime(s, "%Y-%m-%dT%H:%M:%S")
+        except Exception:
+            pass
+        # 3. 常规格式
+        for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
+            try:
+                return datetime.strptime(s, fmt)
+            except Exception:
+                pass
+        # 4. 只提取日期部分
         try:
             import re as _re
-            m = _re.search(r"(\d{4}-\d{2}-\d{2})", str(date_str))
+            m = _re.search(r"(\d{4}-\d{2}-\d{2})", s)
             if m:
                 return datetime.strptime(m.group(1), "%Y-%m-%d")
         except Exception:

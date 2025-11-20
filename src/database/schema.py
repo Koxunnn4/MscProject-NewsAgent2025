@@ -125,6 +125,8 @@ CREATE TABLE IF NOT EXISTS hkstocks_news (
     publish_date TEXT NOT NULL,
     source TEXT DEFAULT 'AAStocks',
     category TEXT,
+    keywords TEXT,
+    industry TEXT,
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now'))
 );

@@ -10,7 +10,8 @@ LOGS_DIR = os.path.join(PROJECT_ROOT, 'logs')
 
 # 数据库配置
 DATABASE_PATH = os.path.join(DATA_DIR, 'news_analysis.db')  # 主数据库
-HISTORY_DB_PATH = os.path.join(PROJECT_ROOT, 'testdb_history.db')  # 历史数据
+HISTORY_DB_PATH = os.path.join(PROJECT_ROOT, 'testdb_history.db')  # 港股历史数据
+CRYPTO_DB_PATH = os.path.join(PROJECT_ROOT, 'testdb_cryptonews.db')  # Crypto新闻数据
 
 # 关键词提取配置
 KEYBERT_MODEL = "paraphrase-multilingual-MiniLM-L12-v2"
@@ -57,7 +58,7 @@ PLOT_FIGSIZE = (12, 6)
 HKSTOCKS_SOURCE_ID = 'aastocks'
 HKSTOCKS_BASE_URL = 'http://www.aastocks.com/tc/stocks/news/aafn'
 HKSTOCKS_REQUEST_TIMEOUT = 30  # 请求超时时间（秒）
-HKSTOCKS_REQUEST_DELAY = 1.5  # 请求延迟（秒），避免过快访问
+HKSTOCKS_REQUEST_DELAY = 0.5  # 请求延迟（秒），避免过快访问
 HKSTOCKS_HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
