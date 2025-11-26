@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}关键词相似度分析{% endblock %}
+{% block title %}关键词统计与查询{% endblock %}
 
 {% block head %}
     <link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}">
@@ -10,13 +10,20 @@
 <div class="container">
     <!-- 页面头部 -->
     <header class="header">
-        <h1>📊 关键词相似度分析</h1>
-        <p>实时分析关键词和币种相似度，发现新闻趋势</p>
+        <h1>📊 关键词统计与查询</h1>
+        <p>实时分析关键词频率相似度，发现新闻趋势</p>
     </header>
 
     <!-- 筛选区域 -->
     <div class="filter-panel">
         <div class="filter-row">
+            <div class="filter-group-compact">
+                <label for="data-source">🗂️ 数据源</label>
+                <select id="data-source">
+                    <option value="crypto" selected>Web3 频道</option>
+                    <option value="hkstocks">港股新闻</option>
+                </select>
+            </div>
             <div class="filter-group-compact">
                 <label for="time-range">📅 时间范围</label>
                 <select id="time-range">
@@ -141,7 +148,7 @@
                 </div>
                 <div id="query-result" class="query-result" style="display: none;">
                     <div id="query-status"></div>
-                    <div id="query-similar" class="similar-words"></div>
+                    <div id="query-similar" class="similar-words-cards"></div>
                 </div>
             </div>
         </div>

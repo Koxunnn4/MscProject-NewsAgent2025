@@ -1,8 +1,11 @@
 /* Copied from MscProject-NewsAgent2025-chenjingyin/static/style.css */
 /* ===== 全局样式 ===== */
 :root {
-    --primary-color: #667eea;
-    --secondary-color: #764ba2;
+    --primary-color: #2b6cb0;
+    --primary-dark: #2c5282;
+    --accent-color: #9f7aea;
+    --secondary-color: #e2e8f0;
+    --secondary-hover: #cbd5e0;
     --success-color: #48bb78;
     --danger-color: #f56565;
     --warning-color: #ed8936;
@@ -10,6 +13,7 @@
     --border-color: #e2e8f0;
     --text-color: #2d3748;
     --text-light: #718096;
+    --card-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
 }
 
 * {
@@ -33,18 +37,18 @@ body {
 
 /* ===== 头部 ===== */
 .header {
-    background: white;
+    background: #fff;
     border-radius: 12px;
     padding: 40px;
     margin-bottom: 30px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--card-shadow);
     text-align: center;
 }
 
 .header h1 {
     font-size: 2.5em;
     margin-bottom: 10px;
-    background: linear-gradient(135deg, #667eea, #764ba2);
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -57,11 +61,11 @@ body {
 
 /* ===== 筛选面板 ===== */
 .filter-panel {
-    background: white;
+    background: #fff;
     border-radius: 12px;
     padding: 20px;
     margin-bottom: 30px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--card-shadow);
 }
 
 .filter-row {
@@ -127,7 +131,7 @@ body {
 }
 
 .collapse-toggle:hover {
-    background: white;
+    background: #fff;
     border-color: var(--primary-color);
     color: var(--primary-color);
 }
@@ -181,6 +185,14 @@ body {
     flex: 1;
 }
 
+.channels-hint {
+    color: var(--text-light);
+    font-style: italic;
+    font-size: 0.9em;
+    text-align: center;
+    margin: 10px 0;
+}
+
 /* ===== 按钮 ===== */
 .btn {
     padding: 12px 30px;
@@ -193,22 +205,22 @@ body {
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    color: white;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+    color: #fff;
 }
 
 .btn-primary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 12px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 6px 12px rgba(43, 108, 176, 0.35);
 }
 
 .btn-secondary {
     background: var(--secondary-color);
-    color: white;
+    color: var(--text-color);
 }
 
 .btn-secondary:hover {
-    opacity: 0.9;
+    background: var(--secondary-hover);
 }
 
 /* ===== 加载动画 ===== */
@@ -238,10 +250,10 @@ body {
 
 /* ===== 结果面板 ===== */
 .results-panel {
-    background: white;
+    background: #fff;
     border-radius: 12px;
     padding: 30px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--card-shadow);
 }
 
 /* ===== 统计概览 ===== */
@@ -253,12 +265,12 @@ body {
 }
 
 .stat-card {
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    color: white;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+    color: #fff;
     padding: 25px;
     border-radius: 10px;
     text-align: center;
-    box-shadow: 0 4px 6px rgba(102, 126, 234, 0.3);
+    box-shadow: 0 4px 6px rgba(43, 108, 176, 0.35);
 }
 
 .stat-card h4 {
@@ -427,42 +439,82 @@ body {
     color: var(--danger-color);
 }
 
-.similar-words {
+.similar-words-cards {
+    margin-top: 20px;
+}
+
+.similar-words-grid {
     display: grid;
-    gap: 12px;
+    grid-template-columns: repeat(5, minmax(200px, 1fr));
+    gap: 15px;
+    margin-top: 15px;
 }
 
-.similar-word-item {
-    background: var(--light-bg);
-    padding: 15px;
-    border-radius: 6px;
-    border-left: 4px solid var(--primary-color);
+.similar-word-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: var(--card-shadow);
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.similar-word-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 15px 35px rgba(15, 23, 42, 0.12);
+    border-color: var(--primary-color);
+}
+
+.similar-word-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: var(--primary-color);
+}
+
+.card-number {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: var(--primary-color);
+    color: white;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    justify-content: center;
+    font-size: 0.8em;
+    font-weight: bold;
 }
 
-.similar-word-info {
-    flex: 1;
+.card-content {
+    padding-top: 10px;
 }
 
-.similar-word-name {
+.card-keyword {
+    font-size: 1.2em;
     font-weight: 600;
     color: var(--text-color);
+    margin-bottom: 8px;
+}
+
+.card-count {
+    font-size: 0.9em;
+    color: var(--text-light);
     margin-bottom: 5px;
 }
 
-.similar-word-count {
+.card-similarity {
     font-size: 0.9em;
-    color: var(--text-light);
-}
-
-.similar-word-score {
-    font-size: 1.3em;
-    font-weight: bold;
     color: var(--primary-color);
-    min-width: 60px;
-    text-align: right;
+    font-weight: 500;
 }
 
 /* ===== 分页 ===== */
@@ -479,8 +531,8 @@ body {
 
 .pagination-btn {
     padding: 10px 20px;
-    background: var(--primary-color);
-    color: white;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+    color: #fff;
     border: none;
     border-radius: 4px;
     cursor: pointer;
@@ -490,9 +542,8 @@ body {
 }
 
 .pagination-btn:hover:not(:disabled) {
-    background: var(--secondary-color);
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+    box-shadow: 0 4px 8px rgba(43, 108, 176, 0.35);
 }
 
 .pagination-btn:disabled {
@@ -500,9 +551,210 @@ body {
     cursor: not-allowed;
 }
 
+
 .page-info {
     font-weight: 600;
     color: var(--text-light);
+}
+
+/* ===== 新闻搜索页 & 通用卡片组件 ===== */
+.hero-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 32px;
+    margin-bottom: 24px;
+    box-shadow: var(--card-shadow);
+}
+
+.section-title {
+    margin-bottom: 16px;
+    font-size: 1.75rem;
+    color: var(--text-color);
+}
+
+.section-heading {
+    font-size: 1rem;
+    color: var(--text-light);
+    margin-bottom: 8px;
+}
+
+.search-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+}
+
+.search-input,
+.search-select {
+    padding: 12px 16px;
+    border-radius: 10px;
+    border: 1px solid #cbd5f5;
+    font-size: 1rem;
+    min-width: 220px;
+    background: #fff;
+}
+
+.search-input {
+    flex: 1;
+}
+
+.search-button {
+    padding: 12px 24px;
+}
+
+.meta-line {
+    color: var(--text-light);
+    margin-top: 12px;
+}
+
+.keyword-cloud {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 24px 0;
+}
+
+.keyword-chip {
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 0.9rem;
+    text-decoration: none;
+    border: 1px solid transparent;
+    transition: transform 0.2s;
+    color: var(--text-color);
+    background: #edf2fb;
+    border-color: #cbd5f5;
+}
+
+.keyword-chip:hover {
+    transform: translateY(-2px);
+}
+
+.page-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 24px;
+}
+
+.news-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: var(--card-shadow);
+}
+
+.news-card__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    font-size: 0.85rem;
+    color: #64748b;
+    margin-bottom: 8px;
+}
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.badge-source {
+    background: rgba(43, 108, 176, 0.15);
+    color: var(--primary-color);
+}
+
+.badge-muted {
+    border: 1px solid var(--border-color);
+    color: var(--text-light);
+}
+
+.keyword-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.keyword-tag {
+    padding: 4px 8px;
+    background: var(--light-bg);
+    border-radius: 6px;
+    font-size: 0.8rem;
+}
+
+.trend-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: var(--card-shadow);
+    margin-bottom: 24px;
+}
+
+.trend-card h3 {
+    margin-bottom: 12px;
+}
+
+.empty-state {
+    background: #fff;
+    border-radius: 16px;
+    padding: 40px;
+    text-align: center;
+    color: var(--text-light);
+    box-shadow: var(--card-shadow);
+}
+
+.news-card h3 {
+    margin: 8px 0 12px;
+    font-size: 1.25rem;
+    color: #1a202c;
+}
+
+.news-card p {
+    margin: 0 0 12px;
+    color: #2d3748;
+    line-height: 1.6;
+}
+
+.news-card__footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.news-card details {
+    margin-top: 8px;
+}
+
+.news-card details summary {
+    cursor: pointer;
+    color: var(--text-light);
+}
+
+@media (max-width: 1024px) {
+    .page-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .search-form {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .search-input,
+    .search-select {
+        width: 100%;
+    }
+
+    .search-button {
+        width: 100%;
+    }
 }
 
 .footer {

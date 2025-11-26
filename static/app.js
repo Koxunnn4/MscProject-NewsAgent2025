@@ -8,9 +8,9 @@ const PAGE_SIZE = 50;
 document.addEventListener('DOMContentLoaded', () => {
     // Only run analyzer-specific scripts if on the analyzer page
     if (document.getElementById('analyze-btn')) {
-        loadChannels();
         setupEventListeners();
         setupChannelToggle();
+        loadChannels();
     }
 });
 
@@ -18,6 +18,13 @@ document.addEventListener('DOMContentLoaded', () => {
 function setupEventListeners() {
     // 分析按钮
     document.getElementById('analyze-btn').addEventListener('click', performAnalysis);
+
+    const sourceSelect = document.getElementById('data-source');
+    if (sourceSelect) {
+        sourceSelect.addEventListener('change', () => {
+            loadChannels();
+        });
+    }
 
     // 标签页切换
     document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -44,24 +51,47 @@ function setupEventListeners() {
 // ===== 加载频道列表（默认全选） =====
 async function loadChannels() {
     try {
-        const response = await fetch('/api/channels');
+        const source = getSelectedSource();
+        const response = await fetch(`/api/channels?source=${source}`);
         const data = await response.json();
 
         const container = document.getElementById('channels-container');
         container.innerHTML = '';
 
-        data.channels.forEach(channel => {
-            const checkbox = document.createElement('div');
-            checkbox.className = 'checkbox-item';
-            checkbox.innerHTML = `
-                <input type="checkbox" id="channel-${channel.id}" value="${channel.channel_id}" checked>
-                <label for="channel-${channel.id}">${channel.name}</label>
-            `;
-            container.appendChild(checkbox);
-        });
+        if (data.supports_channels && data.channels && data.channels.length) {
+            data.channels.forEach(channel => {
+                const checkbox = document.createElement('div');
+                checkbox.className = 'checkbox-item';
+                checkbox.innerHTML = `
+                    <input type="checkbox" id="channel-${channel.id}" value="${channel.channel_id}" checked>
+                    <label for="channel-${channel.id}">${channel.name}</label>
+                `;
+                container.appendChild(checkbox);
+            });
+        } else {
+            const hint = document.createElement('p');
+            hint.textContent = '该数据源无需频道筛选';
+            hint.className = 'channels-hint';
+            container.appendChild(hint);
+        }
+
+        toggleChannelSectionVisibility(Boolean(data.supports_channels));
     } catch (error) {
         console.error('加载频道失败:', error);
     }
+}
+
+function toggleChannelSectionVisibility(enabled) {
+    const wrapper = document.querySelector('.channels-collapse-wrapper');
+    const toggleBtn = document.getElementById('channels-toggle');
+    const collapseContent = document.getElementById('channels-collapse-content');
+
+    if (!wrapper || !toggleBtn || !collapseContent) return;
+
+    wrapper.style.opacity = enabled ? '1' : '0.6';
+    toggleBtn.disabled = !enabled;
+    toggleBtn.style.visibility = enabled ? 'visible' : 'hidden';
+    collapseContent.style.display = 'block';
 }
 
 // ===== 设置频道列表折叠功能 =====
@@ -100,6 +130,7 @@ async function performAnalysis() {
         // 获取筛选参数
         const timeRange = getTimeRange();
         const channelIds = getSelectedChannels();
+        const source = getSelectedSource();
 
         // 显示加载状态
         loading.style.display = 'flex';
@@ -111,7 +142,8 @@ async function performAnalysis() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 time_range: timeRange,
-                channel_ids: channelIds
+                channel_ids: channelIds,
+                data_source: source
             })
         });
 
@@ -150,6 +182,11 @@ function getTimeRange() {
 function getSelectedChannels() {
     const checkboxes = document.querySelectorAll('#channels-container input[type="checkbox"]:checked');
     return Array.from(checkboxes).map(cb => cb.value);
+}
+
+function getSelectedSource() {
+    const select = document.getElementById('data-source');
+    return select ? select.value : 'crypto';
 }
 
 // ===== 显示结果 =====
@@ -297,6 +334,7 @@ function switchTabToElement(tabName) {
 // ===== 执行关键词查询 =====
 async function performQuery() {
     const keyword = document.getElementById('query-keyword').value.trim();
+    const source = getSelectedSource();
 
     if (!keyword) {
         alert('请输入关键词');
@@ -316,7 +354,8 @@ async function performQuery() {
             body: JSON.stringify({
                 keyword: keyword,
                 channel_ids: getSelectedChannels(),
-                time_range: getTimeRange()
+                time_range: getTimeRange(),
+                data_source: source
             })
         });
 
@@ -356,19 +395,30 @@ function displayQueryResult(data) {
         title.style.marginBottom = '15px';
         similarDiv.appendChild(title);
 
-        // 填充相似词
+        // 创建卡片容器
+        const cardsContainer = document.createElement('div');
+        cardsContainer.className = 'similar-words-grid';
+
+        // 填充相似词卡片
         data.similar_words.forEach((item, index) => {
-            const itemDiv = document.createElement('div');
-            itemDiv.className = 'similar-word-item';
-            itemDiv.innerHTML = `
-                <div class="similar-word-info">
-                    <div class="similar-word-name">${index + 1}. ${escapeHtml(item.word)}</div>
-                    <div class="similar-word-count">出现次数: ${item.count}</div>
+            const card = document.createElement('div');
+            card.className = 'similar-word-card';
+            card.innerHTML = `
+                <div class="card-number">${index + 1}</div>
+                <div class="card-content">
+                    <div class="card-keyword">${escapeHtml(item.word)}</div>
+                    <div class="card-count">出现次数: ${item.count}</div>
+                    <div class="card-similarity">${(item.similarity * 100).toFixed(2)}% 相似度</div>
                 </div>
-                <div class="similar-word-score">${(item.similarity * 100).toFixed(2)}%</div>
             `;
-            similarDiv.appendChild(itemDiv);
+            card.addEventListener('click', () => {
+                const source = getSelectedSource();
+                window.location.href = `/search?source=${source}&keyword=${encodeURIComponent(item.word)}`;
+            });
+            cardsContainer.appendChild(card);
         });
+
+        similarDiv.appendChild(cardsContainer);
     } else {
         const noResultDiv = document.createElement('p');
         noResultDiv.textContent = '未找到相似的关键词（可能是因为关键词频率过低或没有有效向量）';
