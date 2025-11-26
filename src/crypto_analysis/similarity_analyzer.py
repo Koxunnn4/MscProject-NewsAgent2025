@@ -33,6 +33,8 @@ class SimilarityAnalyzer:
                  table: str = "messages",
                  keyword_column: str = "keywords",
                  currency_column: str = "industry",
+                 channel_column: Optional[str] = "channel_id",
+                 date_column: str = "date",
                  min_count: int = 5,
                  top_n: int = 100):
         """
@@ -50,6 +52,8 @@ class SimilarityAnalyzer:
         self.table = table
         self.keyword_column = keyword_column
         self.currency_column = currency_column
+        self.channel_column = channel_column
+        self.date_column = date_column
         self.min_count = min_count
         self.top_n = top_n
 
@@ -82,14 +86,14 @@ class SimilarityAnalyzer:
             where_clauses = []
             params = []
 
-            if channel_ids:
+            if channel_ids and self.channel_column:
                 placeholders = ",".join("?" for _ in channel_ids)
-                where_clauses.append(f"channel_id IN ({placeholders})")
+                where_clauses.append(f"{self.channel_column} IN ({placeholders})")
                 params.extend(channel_ids)
 
             if time_range:
                 start_time, end_time = time_range
-                where_clauses.append("date BETWEEN ? AND ?")
+                where_clauses.append(f"{self.date_column} BETWEEN ? AND ?")
                 params.extend([start_time, end_time])
 
             where_sql = " WHERE " + " AND ".join(where_clauses) if where_clauses else ""
@@ -122,14 +126,14 @@ class SimilarityAnalyzer:
             where_clauses = []
             params = []
 
-            if channel_ids:
+            if channel_ids and self.channel_column:
                 placeholders = ",".join("?" for _ in channel_ids)
-                where_clauses.append(f"channel_id IN ({placeholders})")
+                where_clauses.append(f"{self.channel_column} IN ({placeholders})")
                 params.extend(channel_ids)
 
             if time_range:
                 start_time, end_time = time_range
-                where_clauses.append("date BETWEEN ? AND ?")
+                where_clauses.append(f"{self.date_column} BETWEEN ? AND ?")
                 params.extend([start_time, end_time])
 
             where_sql = ""
