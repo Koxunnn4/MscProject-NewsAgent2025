@@ -757,6 +757,65 @@ body {
     }
 }
 
+/* ===== 关键词单元格交互样式 ===== */
+.keyword-cell {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.keyword-text {
+    font-weight: bold;
+    cursor: pointer;
+    color: #2c3e50;
+    border-bottom: 1px dashed #cbd5e0;
+    transition: all 0.2s;
+    flex: 1;
+}
+
+.keyword-text:hover {
+    color: #3182ce;
+    border-bottom-color: #3182ce;
+}
+
+.keyword-actions {
+    display: flex;
+    gap: 5px;
+    opacity: 0.3;
+    transition: opacity 0.2s;
+}
+
+.keyword-cell:hover .keyword-actions {
+    opacity: 1;
+}
+
+.action-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.1em;
+    padding: 2px 5px;
+    border-radius: 4px;
+    text-decoration: none;
+    transition: background-color 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.action-btn:hover {
+    background-color: #edf2f7;
+}
+
+.search-btn {
+    color: #4a5568;
+}
+
+.analyze-btn {
+    color: #805ad5;
+}
+
 .footer {
     text-align: center;
     padding: 20px;

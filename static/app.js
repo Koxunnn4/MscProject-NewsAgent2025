@@ -265,9 +265,23 @@ function displayKeywordPage() {
     for (let i = startIdx; i < endIdx; i++) {
         const item = allKeywords[i];
         const row = document.createElement('tr');
+        const source = getSelectedSource();
+        
         row.innerHTML = `
             <td>${i + 1}</td>
-            <td><strong>${escapeHtml(item.word)}</strong></td>
+            <td>
+                <div class="keyword-cell">
+                    <span class="keyword-text" onclick="quickAnalyze('${escapeHtml(item.word)}')" title="点击分析关联词">${escapeHtml(item.word)}</span>
+                    <div class="keyword-actions">
+                        <a href="/search?keyword=${encodeURIComponent(item.word)}&source=${source}" target="_blank" class="action-btn search-btn" title="搜索相关新闻">
+                            🔍
+                        </a>
+                        <button onclick="quickAnalyze('${escapeHtml(item.word)}')" class="action-btn analyze-btn" title="查看相似词">
+                            🔗
+                        </button>
+                    </div>
+                </div>
+            </td>
             <td>${item.count}</td>
             <td>${item.occur_count}</td>
             <td>${item.ratio.toFixed(2)}%</td>
@@ -428,6 +442,20 @@ function displayQueryResult(data) {
     }
 
     resultDiv.style.display = 'block';
+}
+
+// ===== 快捷操作函数 =====
+function quickAnalyze(keyword) {
+    // 1. 切换到查询 Tab
+    switchTabToElement('query');
+    
+    // 2. 填入关键词
+    const input = document.getElementById('query-keyword');
+    if (input) {
+        input.value = keyword;
+        // 3. 触发查询
+        performQuery();
+    }
 }
 
 // ===== 工具函数 =====
