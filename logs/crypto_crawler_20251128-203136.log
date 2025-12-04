@@ -1,0 +1,105 @@
+/Users/hk00604ml/cjy/MscProject-NewsAgent2025/.venv/lib/python3.11/site-packages/jieba/_compat.py:18: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+2025-11-28 20:31:41,157 - INFO - libssl detected, it will be used for encryption
+2025-11-28 20:31:41,214 - INFO - 正在加载 KeyBERT 模型: paraphrase-multilingual-MiniLM-L12-v2...
+2025-11-28 20:31:41,214 - INFO - Use pytorch device_name: mps
+2025-11-28 20:31:41,214 - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-11-28 20:31:46,145 - INFO - ✓ 成功加载 KeyBERT 模型: paraphrase-multilingual-MiniLM-L12-v2
+2025-11-28 20:31:46,145 - INFO - 正在加载 spaCy 模型: zh_core_web_sm...
+2025-11-28 20:31:46,146 - INFO - 正在加载 spaCy 模型: zh_core_web_lg...
+2025-11-28 20:31:47,053 - INFO - ✓ 成功加载 spaCy 模型: zh_core_web_lg
+2025-11-28 20:31:47,060 - INFO - 生产者和消费者初始化成功 (DB: /Users/hk00604ml/cjy/MscProject-NewsAgent2025/testdb_cryptonews.db)
+2025-11-28 20:31:47,060 - INFO - Connecting to 91.108.56.117:443/TcpFull...
+2025-11-28 20:31:47,103 - INFO - Connection to 91.108.56.117:443/TcpFull complete!
+2025-11-28 20:31:47,422 - INFO - >>> 开始实时模式
+2025-11-28 21:59:54,595 - WARNING - Server closed the connection: [Errno 60] Operation timed out
+2025-11-28 21:59:54,596 - INFO - Connection closed while receiving data: [Errno 60] Operation timed out
+2025-11-28 21:59:54,596 - INFO - Closing current connection to begin reconnect...
+2025-11-28 21:59:54,597 - INFO - Connecting to 91.108.56.117:443/TcpFull...
+2025-11-28 21:59:54,597 - WARNING - Graceful disconnection timed out, forcibly ignoring cleanup
+2025-11-28 21:59:54,597 - WARNING - Attempt 1 at connecting failed: OSError: [Errno 51] Network is unreachable
+2025-11-28 21:59:56,604 - WARNING - Attempt 2 at connecting failed: OSError: [Errno 51] Network is unreachable
+2025-11-28 21:59:58,638 - WARNING - Attempt 3 at connecting failed: OSError: [Errno 51] Network is unreachable
+2025-11-28 22:00:00,666 - WARNING - Attempt 4 at connecting failed: OSError: [Errno 51] Network is unreachable
+2025-11-28 22:00:02,697 - WARNING - Attempt 5 at connecting failed: OSError: [Errno 51] Network is unreachable
+2025-11-28 22:26:53,758 - WARNING - Attempt 6 at connecting failed: OSError: [Errno 51] Network is unreachable
+2025-11-28 22:26:55,793 - INFO - Failed reconnection attempt 1 with ConnectionError
+2025-11-28 22:26:57,838 - INFO - Connecting to 91.108.56.117:443/TcpFull...
+2025-11-28 22:27:08,046 - WARNING - Attempt 1 at connecting failed: TimeoutError: 
+2025-11-28 22:27:20,255 - WARNING - Attempt 2 at connecting failed: TimeoutError: 
+2025-11-28 22:27:32,462 - WARNING - Attempt 3 at connecting failed: TimeoutError: 
+2025-11-28 22:30:57,887 - WARNING - Attempt 4 at connecting failed: TimeoutError: 
+2025-11-28 22:31:10,090 - WARNING - Attempt 5 at connecting failed: TimeoutError: 
+2025-11-28 22:31:22,295 - WARNING - Attempt 6 at connecting failed: TimeoutError: 
+2025-11-28 22:31:24,327 - INFO - Failed reconnection attempt 2 with ConnectionError
+2025-11-28 22:31:26,364 - INFO - Connecting to 91.108.56.117:443/TcpFull...
+2025-11-28 22:31:36,528 - WARNING - Attempt 1 at connecting failed: TimeoutError: 
+2025-11-28 22:44:37,245 - WARNING - Attempt 2 at connecting failed: TimeoutError: 
+2025-11-28 22:44:49,435 - WARNING - Attempt 3 at connecting failed: TimeoutError: 
+2025-11-28 22:45:01,631 - WARNING - Attempt 4 at connecting failed: TimeoutError: 
+2025-11-28 22:45:13,824 - WARNING - Attempt 5 at connecting failed: TimeoutError: 
+2025-11-28 22:51:17,815 - WARNING - Attempt 6 at connecting failed: TimeoutError: 
+2025-11-28 22:51:19,850 - INFO - Failed reconnection attempt 3 with ConnectionError
+2025-11-28 22:51:21,890 - INFO - Connecting to 91.108.56.117:443/TcpFull...
+2025-11-28 22:51:32,057 - WARNING - Attempt 1 at connecting failed: TimeoutError: 
+2025-11-28 22:51:44,229 - WARNING - Attempt 2 at connecting failed: TimeoutError: 
+2025-11-28 22:51:56,346 - WARNING - Attempt 3 at connecting failed: TimeoutError: 
+2025-11-28 22:52:08,469 - WARNING - Attempt 4 at connecting failed: TimeoutError: 
+2025-11-28 22:52:20,675 - WARNING - Attempt 5 at connecting failed: TimeoutError: 
+2025-11-28 22:52:32,922 - WARNING - Attempt 6 at connecting failed: TimeoutError: 
+2025-11-28 22:52:34,956 - INFO - Failed reconnection attempt 4 with ConnectionError
+2025-11-28 22:52:36,990 - INFO - Connecting to 91.108.56.117:443/TcpFull...
+2025-11-28 22:52:47,163 - WARNING - Attempt 1 at connecting failed: TimeoutError: 
+2025-11-28 22:52:59,375 - WARNING - Attempt 2 at connecting failed: TimeoutError: 
+2025-11-28 22:53:11,578 - WARNING - Attempt 3 at connecting failed: TimeoutError: 
+2025-11-28 22:53:23,779 - WARNING - Attempt 4 at connecting failed: TimeoutError: 
+2025-11-28 22:53:35,982 - WARNING - Attempt 5 at connecting failed: TimeoutError: 
+2025-11-28 22:53:48,188 - WARNING - Attempt 6 at connecting failed: TimeoutError: 
+2025-11-28 22:53:50,221 - INFO - Failed reconnection attempt 5 with ConnectionError
+2025-11-28 22:53:52,261 - ERROR - Automatic reconnection failed 5 time(s)
+2025-11-28 22:53:52,264 - INFO - Disconnecting from 91.108.56.117:443/TcpFull...
+2025-11-28 22:53:52,265 - INFO - Disconnection from 91.108.56.117:443/TcpFull complete!
+2025-11-28 22:53:52,265 - INFO - Cannot get difference since the network is down: ConnectionError: Connection to Telegram failed 5 time(s)
+2025-11-28 22:53:52,266 - INFO - Not disconnecting (already have no connection)
+2025-11-28 22:53:52,266 - ERROR - Unhandled exception from keepalive_handle after cancelling <class '_asyncio.Task'> (<Task finished name='Task-8' coro=<UpdateMethods._keepalive_loop() done, defined at /Users/hk00604ml/cjy/MscProject-NewsAgent2025/.venv/lib/python3.11/site-packages/telethon/client/updates.py:485> exception=OperationalError('database is locked')>)
+Traceback (most recent call last):
+  File "/Users/hk00604ml/cjy/MscProject-NewsAgent2025/.venv/lib/python3.11/site-packages/telethon/helpers.py", line 176, in _cancel
+    await task
+  File "/Users/hk00604ml/cjy/MscProject-NewsAgent2025/.venv/lib/python3.11/site-packages/telethon/client/updates.py", line 521, in _keepalive_loop
+    await self._save_states_and_entities()
+  File "/Users/hk00604ml/cjy/MscProject-NewsAgent2025/.venv/lib/python3.11/site-packages/telethon/client/telegrambaseclient.py", line 701, in _save_states_and_entities
+    self.session.process_entities(
+  File "/Users/hk00604ml/cjy/MscProject-NewsAgent2025/.venv/lib/python3.11/site-packages/telethon/sessions/sqlite.py", line 301, in process_entities
+    c.executemany(
+sqlite3.OperationalError: database is locked
+2025-11-28 22:53:58,859 - ERROR - 运行过程中出现错误: database is locked
+2025-11-28 22:53:58,860 - INFO - Not disconnecting (already have no connection)
+2025-11-28 22:53:58,860 - ERROR - Unhandled exception from keepalive_handle after cancelling <class '_asyncio.Task'> (<Task finished name='Task-8' coro=<UpdateMethods._keepalive_loop() done, defined at /Users/hk00604ml/cjy/MscProject-NewsAgent2025/.venv/lib/python3.11/site-packages/telethon/client/updates.py:485> exception=OperationalError('database is locked')>)
+Traceback (most recent call last):
+  File "/Users/hk00604ml/cjy/MscProject-NewsAgent2025/.venv/lib/python3.11/site-packages/telethon/helpers.py", line 176, in _cancel
+    await task
+sqlite3.OperationalError: database is locked
+2025-11-28 22:54:05,383 - INFO - Consumer stream cancelled
+Traceback (most recent call last):
+  File "/Users/hk00604ml/cjy/MscProject-NewsAgent2025/run_crypto_crawler.py", line 71, in <module>
+    asyncio.run(main(args_mode))
+  File "/Users/hk00604ml/.local/share/uv/python/cpython-3.11.14-macos-aarch64-none/lib/python3.11/asyncio/runners.py", line 190, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/Users/hk00604ml/.local/share/uv/python/cpython-3.11.14-macos-aarch64-none/lib/python3.11/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/hk00604ml/.local/share/uv/python/cpython-3.11.14-macos-aarch64-none/lib/python3.11/asyncio/base_events.py", line 654, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/Users/hk00604ml/cjy/MscProject-NewsAgent2025/run_crypto_crawler.py", line 53, in main
+    await producer.stop()
+  File "/Users/hk00604ml/cjy/MscProject-NewsAgent2025/src/crawler/crpyto_news/producer.py", line 35, in stop
+    await self.client.disconnect()
+  File "/Users/hk00604ml/cjy/MscProject-NewsAgent2025/.venv/lib/python3.11/site-packages/telethon/client/telegrambaseclient.py", line 746, in _disconnect_coro
+    await self._save_states_and_entities()
+  File "/Users/hk00604ml/cjy/MscProject-NewsAgent2025/.venv/lib/python3.11/site-packages/telethon/client/telegrambaseclient.py", line 701, in _save_states_and_entities
+    self.session.process_entities(
+  File "/Users/hk00604ml/cjy/MscProject-NewsAgent2025/.venv/lib/python3.11/site-packages/telethon/sessions/sqlite.py", line 301, in process_entities
+    c.executemany(
+sqlite3.OperationalError: database is locked

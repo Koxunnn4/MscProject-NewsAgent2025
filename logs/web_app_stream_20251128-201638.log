@@ -1,0 +1,30 @@
+INFO:     Will watch for changes in these directories: ['/Users/hk00604ml/cjy/MscProject-NewsAgent2025']
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [61439] using StatReload
+/Users/hk00604ml/cjy/MscProject-NewsAgent2025/.venv/lib/python3.11/site-packages/jieba/_compat.py:18: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+INFO:telethon.crypto.aes:libssl detected, it will be used for encryption
+INFO:root:✓ 多数据源分析器初始化完成
+INFO:     Started server process [61445]
+INFO:     Waiting for application startup.
+INFO:src.realtime_ingest:启动实时新闻摄取管道，数据库: /Users/hk00604ml/cjy/MscProject-NewsAgent2025/testdb_cryptonews.db
+INFO:src.crypto_analysis.model_loader:正在加载 KeyBERT 模型: paraphrase-multilingual-MiniLM-L12-v2...
+INFO:sentence_transformers.SentenceTransformer:Use pytorch device_name: mps
+INFO:sentence_transformers.SentenceTransformer:Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+INFO:src.crypto_analysis.model_loader:✓ 成功加载 KeyBERT 模型: paraphrase-multilingual-MiniLM-L12-v2
+INFO:src.crypto_analysis.model_loader:正在加载 spaCy 模型: zh_core_web_sm...
+INFO:src.crypto_analysis.model_loader:正在加载 spaCy 模型: zh_core_web_lg...
+INFO:src.crypto_analysis.model_loader:✓ 成功加载 spaCy 模型: zh_core_web_lg
+INFO:telethon.network.mtprotosender:Connecting to 91.108.56.117:443/TcpFull...
+INFO:telethon.network.mtprotosender:Connection to 91.108.56.117:443/TcpFull complete!
+INFO:     Application startup complete.
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:src.realtime_ingest:停止实时新闻摄取管道
+INFO:telethon.network.mtprotosender:Disconnecting from 91.108.56.117:443/TcpFull...
+INFO:telethon.network.mtprotosender:Disconnection from 91.108.56.117:443/TcpFull complete!
+INFO:src.crawler.crpyto_news.consumer:Consumer stream cancelled
+INFO:telethon.network.mtprotosender:Not disconnecting (already have no connection)
+INFO:     Application shutdown complete.
+INFO:     Finished server process [61445]
+INFO:     Stopping reloader process [61439]

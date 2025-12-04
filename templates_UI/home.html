@@ -1,29 +1,502 @@
 {% extends "base.html" %}
 
-{% block title %}Web3 新闻搜索引擎{% endblock %}
-
-{% block head %}
-<style>
-    .welcome-container { text-align: center; padding: 80px 20px; }
-    .welcome-container h1 { font-size: 3rem; margin-bottom: 16px; }
-    .welcome-container p { font-size: 1.25rem; color: #4a5568; margin-bottom: 32px; }
-    .cta-buttons { display: flex; justify-content: center; gap: 24px; }
-    .cta-button { text-decoration: none; padding: 12px 24px; border-radius: 8px; font-size: 1.1rem; font-weight: 600; transition: all 0.3s; }
-    .cta-primary { background-color: #2b6cb0; color: white; }
-    .cta-primary:hover { background-color: #2c5282; transform: translateY(-2px); }
-    .cta-secondary { background-color: #E2E8F0; color: #2D3748; }
-    .cta-secondary:hover { background-color: #CBD5E0; transform: translateY(-2px); }
-</style>
-{% endblock %}
+{% block title %}Alpha Radar{% endblock %}
 
 {% block content %}
-<div class="welcome-container">
-    <h1>欢迎使用加密货币&港股新闻分析平台</h1>
-    <p>一站式聚合加密货币与港股市场资讯，支持关键词搜索、摘要与趋势分析。</p>
-    <div class="cta-buttons">
-    <a href="/search" class="cta-button cta-primary">开始搜索新闻</a>
-    <!-- <a href="/search?source=hkstocks" class="cta-button cta-secondary">切换到港股数据源</a> -->
-    <a href="/analyzer" class="cta-button cta-secondary">进行关键词分析</a>
+<section class="dashboard-hero glass-panel">
+    <div class="hero-copy">
+        <p class="hero-kicker">Alpha Radar · 情报驾驶舱</p>
+        <h1>从 <span>新闻噪音</span> 到 <span>交易信号</span></h1>
+        <p class="hero-subtitle">即时捕捉市场热点、验证叙事强度、发现潜在补涨标的。适用于加密与港股两大市场。</p>
+        <div class="hero-actions">
+            <a href="/analyzer" class="btn btn-primary">🚀 启动热点雷达</a>
+            <a href="/search" class="btn btn-secondary">🔎 快速检索资讯</a>
+        </div>
+        <p class="refresh-indicator" data-region="refresh-indicator">数据每 60 秒自动刷新</p>
+        <div class="workflow-steps">
+            <div class="step">
+                <span>1</span>
+                <div>
+                    <h4>发现</h4>
+                    <p>关键词飙升榜筛选潜在叙事</p>
+                </div>
+            </div>
+            <div class="step">
+                <span>2</span>
+                <div>
+                    <h4>验证</h4>
+                    <p>摘要 + 情绪评估确认利好级别</p>
+                </div>
+            </div>
+            <div class="step">
+                <span>3</span>
+                <div>
+                    <h4>挖掘</h4>
+                    <p>相似词网络捕捉补涨候选</p>
+                </div>
+            </div>
+        </div>
     </div>
-</div>
+    <aside class="hero-cards">
+        <div class="fng-card glass-panel compact" data-region="fng-card">
+            <div class="card-header">
+                <span>Fear & Greed 指数</span>
+                <small>来源：alternative.me</small>
+            </div>
+            <div class="fng-value {{ fear_greed.value_class }}" data-fng-value>{{ fear_greed.value or '—' }}</div>
+            <p class="fng-label" data-fng-label>{{ fear_greed.classification or '数据不可用' }}</p>
+            <p class="fng-meta" data-fng-meta>{% if fear_greed.timestamp %}更新于 {{ fear_greed.timestamp }}{% else %}暂无更新时间{% endif %}</p>
+            <div class="fng-placeholder" data-fng-placeholder{% if fear_greed.value %} style="display:none"{% endif %}>暂无数据</div>
+        </div>
+        <div class="spotlight glass-panel compact">
+            <div class="card-header">
+                <span>📈 Alpha Spotlight</span>
+                <small>点击直达 TradingView</small>
+            </div>
+            <ul class="spotlight-list" data-region="spotlight-list">
+                {% if spotlight_symbols %}
+                    {% for item in spotlight_symbols %}
+                        <li>
+                            <div>
+                                <p class="symbol">{{ item.symbol }}</p>
+                                <p class="keyword">{{ item.keyword }} · {{ item.count }}</p>
+                            </div>
+                            <a href="{{ item.url }}" target="_blank" rel="noopener" class="mini-link">开图</a>
+                        </li>
+                    {% endfor %}
+                {% else %}
+                    <li><p class="empty">暂无热点，请稍后重试。</p></li>
+                {% endif %}
+            </ul>
+        </div>
+    </aside>
+</section>
+
+<section class="dashboard-section">
+    <div class="section-header">
+        <h2>🔥 Crypto 24h 热度飙升</h2>
+        <a href="/analyzer" class="section-action">查看全部 →</a>
+    </div>
+    <div class="keyword-grid" data-region="crypto-trending">
+        {% if crypto_trending %}
+            {% for item in crypto_trending %}
+                <article class="keyword-card glass-panel">
+                    <header>
+                        <span class="badge">Crypto</span>
+                        <span class="count">+{{ item.count }}</span>
+                    </header>
+                    <h3>{{ item.keyword }}</h3>
+                    <div class="card-actions">
+                        <a href="/search?source=crypto&keyword={{ item.keyword }}" class="mini-link">新闻</a>
+                        {% if item.symbol %}
+                        <a href="https://www.tradingview.com/chart/?symbol={{ item.symbol }}" target="_blank" rel="noopener" class="mini-link">图表</a>
+                        {% endif %}
+                        <button class="mini-link" onclick="window.location.href='/analyzer'">分析</button>
+                    </div>
+                </article>
+            {% endfor %}
+        {% else %}
+            <div class="empty-card glass-panel">暂无数据</div>
+        {% endif %}
+    </div>
+</section>
+
+<section class="dashboard-section">
+    <div class="section-header">
+        <h2>📊 港股叙事热度</h2>
+        <a href="/search?source=hkstocks" class="section-action">切换到港股 →</a>
+    </div>
+    <div class="keyword-grid" data-region="hk-trending">
+        {% if hk_trending %}
+            {% for item in hk_trending %}
+                <article class="keyword-card glass-panel hk">
+                    <header>
+                        <span class="badge hk">HK Stocks</span>
+                        <span class="count">+{{ item.count }}</span>
+                    </header>
+                    <h3>{{ item.keyword }}</h3>
+                    <div class="card-actions">
+                        <a href="/search?source=hkstocks&keyword={{ item.keyword }}" class="mini-link">新闻</a>
+                    </div>
+                </article>
+            {% endfor %}
+        {% else %}
+            <div class="empty-card glass-panel">暂无数据</div>
+        {% endif %}
+    </div>
+</section>
+
+<section class="dashboard-section two-column">
+    <div>
+        <div class="section-header">
+            <h2> Crypto 实时脉搏</h2>
+            <small>来自消息源的最新 4 条摘要</small>
+        </div>
+        <div class="news-stack" data-region="crypto-latest">
+            {% if crypto_latest %}
+                {% for news in crypto_latest %}
+                    <article class="mini-news glass-panel">
+                        <header>
+                            <span class="badge">{{ news.source_badge }}</span>
+                            <span class="timestamp">{{ news.date }}</span>
+                        </header>
+                        <h3>{{ news.title }}</h3>
+                        <p>{{ news.summary or news.original_text[:120] }}</p>
+                        <div class="mini-actions">
+                            {% if news.url %}<a href="{{ news.url }}" target="_blank" rel="noopener">查看原文</a>{% endif %}
+                            <a href="/search?source=crypto&keyword={{ news.keyword_list[0] if news.keyword_list else '' }}">关联搜索</a>
+                        </div>
+                    </article>
+                {% endfor %}
+            {% else %}
+                <div class="empty-card glass-panel">暂无最新资讯</div>
+            {% endif %}
+        </div>
+    </div>
+    <div>
+        <div class="section-header">
+            <h2>🏛 港股要闻速览</h2>
+            <small>港股市场情报一览</small>
+        </div>
+        <div class="news-stack" data-region="hk-latest">
+            {% if hk_latest %}
+                {% for news in hk_latest %}
+                    <article class="mini-news glass-panel">
+                        <header>
+                            <span class="badge hk">HK</span>
+                            <span class="timestamp">{{ news.date }}</span>
+                        </header>
+                        <h3>{{ news.title }}</h3>
+                        <p>{{ news.summary or news.original_text[:120] }}</p>
+                        <div class="mini-actions">
+                            {% if news.url %}<a href="{{ news.url }}" target="_blank" rel="noopener">查看原文</a>{% endif %}
+                            {% if news.keyword_list %}<a href="/search?source=hkstocks&keyword={{ news.keyword_list[0] }}">关联搜索</a>{% endif %}
+                        </div>
+                    </article>
+                {% endfor %}
+            {% else %}
+                <div class="empty-card glass-panel">暂无最新资讯</div>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+<section class="dashboard-section playbook">
+    <div class="section-header">
+        <h2>🎯 Alpha Playbook</h2>
+        <small>演示模式：参考以下剧本快速展示产品价值</small>
+    </div>
+    <div class="playbook-grid">
+        <article class="play-card glass-panel">
+            <h3>RWA 叙事补涨</h3>
+            <ol>
+                <li>在「Crypto 热度」中捕捉 RWA 飙升</li>
+                <li>点击 🔍 进入新闻页，确认“黑石代币化国债”</li>
+                <li>回到分析器 → 相似词搜索 → 找到 ONDO/Centrifuge</li>
+                <li>一键打开 TradingView，查看 K 线确认节奏</li>
+            </ol>
+        </article>
+        <article class="play-card glass-panel">
+            <h3>港股 AI 板块轮动</h3>
+            <ol>
+                <li>在港股热度榜发现「算力」「AI Agent」关键词</li>
+                <li>跳转新闻页获取政策/公司动向</li>
+                <li>使用分析器查看关联行业和相似企业</li>
+                <li>整合补涨标的后进入 PPT / Demo 展示</li>
+            </ol>
+        </article>
+        <article class="play-card glass-panel">
+            <h3>情绪极值反转</h3>
+            <ol>
+                <li>Fear & Greed 指数跌至 Extreme Fear</li>
+                <li>分析器筛选「抛售」「清算」类关键词</li>
+                <li>查找恐慌中仍热度上升的项目（潜在反弹）</li>
+                <li>结合新闻摘要制作风险提示与机会洞察</li>
+            </ol>
+        </article>
+    </div>
+</section>
+
+{% if auto_refresh %}
+<p class="refresh-indicator" data-region="refresh-indicator">数据每 {{ refresh_interval }} 秒自动刷新</p>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if auto_refresh %}
+<script>
+(function () {
+    const REFRESH_INTERVAL_SEC = {{ refresh_interval }};
+    const REFRESH_INTERVAL_MS = REFRESH_INTERVAL_SEC * 1000;
+    const fngCard = document.querySelector('[data-region="fng-card"]');
+    const spotlightList = document.querySelector('[data-region="spotlight-list"]');
+    const cryptoTrending = document.querySelector('[data-region="crypto-trending"]');
+    const hkTrending = document.querySelector('[data-region="hk-trending"]');
+    const cryptoLatest = document.querySelector('[data-region="crypto-latest"]');
+    const hkLatest = document.querySelector('[data-region="hk-latest"]');
+    const refreshIndicator = document.querySelector('[data-region="refresh-indicator"]');
+
+    if (!fngCard) {
+        return;
+    }
+
+    const setText = (el, text) => {
+        if (el) {
+            el.textContent = typeof text === 'string' ? text : (text ?? '—');
+        }
+    };
+
+    const updateFearGreed = (payload) => {
+        const valueEl = fngCard.querySelector('[data-fng-value]');
+        const labelEl = fngCard.querySelector('[data-fng-label]');
+        const metaEl = fngCard.querySelector('[data-fng-meta]');
+        const placeholderEl = fngCard.querySelector('[data-fng-placeholder]');
+
+        const hasValue = payload && payload.value;
+        if (valueEl) {
+            const valueClass = hasValue && payload.value_class ? payload.value_class : 'neutral';
+            valueEl.className = 'fng-value ' + valueClass;
+            setText(valueEl, hasValue ? payload.value : '—');
+            valueEl.style.display = '';
+        }
+        if (labelEl) {
+            setText(labelEl, hasValue ? (payload.classification || '数据不可用') : '数据不可用');
+            labelEl.style.display = '';
+        }
+        if (metaEl) {
+            const meta = hasValue && payload.timestamp ? `更新于 ${payload.timestamp}` : '暂无更新时间';
+            setText(metaEl, meta);
+            metaEl.style.display = '';
+        }
+        if (placeholderEl) {
+            placeholderEl.style.display = hasValue ? 'none' : '';
+        }
+    };
+
+    const renderSpotlight = (items) => {
+        if (!spotlightList) {
+            return;
+        }
+        spotlightList.innerHTML = '';
+        if (!items || !items.length) {
+            const li = document.createElement('li');
+            const p = document.createElement('p');
+            p.className = 'empty';
+            p.textContent = '暂无热点，请稍后重试。';
+            li.appendChild(p);
+            spotlightList.appendChild(li);
+            return;
+        }
+        items.forEach((item) => {
+            const li = document.createElement('li');
+            const wrapper = document.createElement('div');
+            const symbol = document.createElement('p');
+            symbol.className = 'symbol';
+            symbol.textContent = item.symbol || item.keyword || '—';
+            const keyword = document.createElement('p');
+            keyword.className = 'keyword';
+            keyword.textContent = `${item.keyword || '未知'} · ${item.count ?? 0}`;
+            wrapper.appendChild(symbol);
+            wrapper.appendChild(keyword);
+            const link = document.createElement('a');
+            link.href = item.url || '#';
+            link.className = 'mini-link';
+            link.target = '_blank';
+            link.rel = 'noopener';
+            link.textContent = '开图';
+            if (!item.url) {
+                link.setAttribute('aria-disabled', 'true');
+                link.addEventListener('click', (evt) => evt.preventDefault());
+            }
+            li.appendChild(wrapper);
+            li.appendChild(link);
+            spotlightList.appendChild(li);
+        });
+    };
+
+    const renderKeywordCards = (container, items, options) => {
+        if (!container) {
+            return;
+        }
+        container.innerHTML = '';
+        if (!items || !items.length) {
+            const emptyCard = document.createElement('div');
+            emptyCard.className = 'empty-card glass-panel';
+            emptyCard.textContent = '暂无数据';
+            container.appendChild(emptyCard);
+            return;
+        }
+        items.forEach((item) => {
+            const card = document.createElement('article');
+            card.className = 'keyword-card glass-panel';
+            if (options.extraClass) {
+                card.classList.add(options.extraClass);
+            }
+
+            const header = document.createElement('header');
+            const badge = document.createElement('span');
+            badge.className = 'badge' + (options.badgeClass ? ' ' + options.badgeClass : '');
+            badge.textContent = options.badgeLabel;
+            const count = document.createElement('span');
+            count.className = 'count';
+            count.textContent = `+${item.count ?? 0}`;
+            header.appendChild(badge);
+            header.appendChild(count);
+
+            const title = document.createElement('h3');
+            title.textContent = item.keyword || '未命名';
+
+            const actions = document.createElement('div');
+            actions.className = 'card-actions';
+
+            const searchLink = document.createElement('a');
+            const keywordParam = encodeURIComponent(item.keyword || '');
+            searchLink.href = `/search?source=${options.searchSource}&keyword=${keywordParam}`;
+            searchLink.className = 'mini-link';
+            searchLink.textContent = '新闻';
+            actions.appendChild(searchLink);
+
+            if (options.includeChart && item.symbol) {
+                const chartLink = document.createElement('a');
+                chartLink.href = `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(item.symbol)}`;
+                chartLink.target = '_blank';
+                chartLink.rel = 'noopener';
+                chartLink.className = 'mini-link';
+                chartLink.textContent = '图表';
+                actions.appendChild(chartLink);
+            }
+
+            if (options.includeAnalyzer) {
+                const analyzerButton = document.createElement('button');
+                analyzerButton.className = 'mini-link';
+                analyzerButton.type = 'button';
+                analyzerButton.textContent = '分析';
+                analyzerButton.addEventListener('click', () => {
+                    window.location.href = '/analyzer';
+                });
+                actions.appendChild(analyzerButton);
+            }
+
+            card.appendChild(header);
+            card.appendChild(title);
+            card.appendChild(actions);
+            container.appendChild(card);
+        });
+    };
+
+    const renderNewsStack = (container, items, options) => {
+        if (!container) {
+            return;
+        }
+        container.innerHTML = '';
+        if (!items || !items.length) {
+            const emptyCard = document.createElement('div');
+            emptyCard.className = 'empty-card glass-panel';
+            emptyCard.textContent = '暂无最新资讯';
+            container.appendChild(emptyCard);
+            return;
+        }
+        items.forEach((news) => {
+            const article = document.createElement('article');
+            article.className = 'mini-news glass-panel';
+
+            const header = document.createElement('header');
+            const badge = document.createElement('span');
+            badge.className = 'badge' + (options.badgeClass ? ' ' + options.badgeClass : '');
+            badge.textContent = news.source_badge || options.badgeLabel;
+            const timestamp = document.createElement('span');
+            timestamp.className = 'timestamp';
+            timestamp.textContent = news.date || '—';
+            header.appendChild(badge);
+            header.appendChild(timestamp);
+
+            const title = document.createElement('h3');
+            title.textContent = news.title || '未命名资讯';
+
+            const summary = document.createElement('p');
+            const rawSummary = news.summary || news.original_text || '';
+            summary.textContent = rawSummary.length > 160 ? `${rawSummary.slice(0, 157)}…` : rawSummary || '暂无摘要';
+
+            const actions = document.createElement('div');
+            actions.className = 'mini-actions';
+
+            if (news.url) {
+                const originLink = document.createElement('a');
+                originLink.href = news.url;
+                originLink.target = '_blank';
+                originLink.rel = 'noopener';
+                originLink.textContent = '查看原文';
+                actions.appendChild(originLink);
+            }
+
+            if (news.keyword_list && news.keyword_list.length) {
+                const relatedLink = document.createElement('a');
+                relatedLink.href = `/search?source=${options.searchSource}&keyword=${encodeURIComponent(news.keyword_list[0] || '')}`;
+                relatedLink.textContent = '关联搜索';
+                actions.appendChild(relatedLink);
+            }
+
+            article.appendChild(header);
+            article.appendChild(title);
+            article.appendChild(summary);
+            article.appendChild(actions);
+            container.appendChild(article);
+        });
+    };
+
+    const updateRefreshIndicator = () => {
+        if (!refreshIndicator) {
+            return;
+        }
+        const now = new Date();
+        const formatted = now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        refreshIndicator.textContent = `数据每 ${REFRESH_INTERVAL_SEC} 秒自动刷新 · 上次更新 ${formatted}`;
+    };
+
+    const refreshDashboard = async () => {
+        try {
+            const response = await fetch('/api/dashboard', { cache: 'no-store' });
+            if (!response.ok) {
+                throw new Error(`Request failed: ${response.status}`);
+            }
+            const payload = await response.json();
+            updateFearGreed(payload.fear_greed || {});
+            renderSpotlight(payload.spotlight_symbols || []);
+            renderKeywordCards(cryptoTrending, payload.crypto_trending || [], {
+                badgeLabel: 'Crypto',
+                badgeClass: '',
+                searchSource: 'crypto',
+                includeChart: true,
+                includeAnalyzer: true,
+                extraClass: ''
+            });
+            renderKeywordCards(hkTrending, payload.hk_trending || [], {
+                badgeLabel: 'HK Stocks',
+                badgeClass: 'hk',
+                searchSource: 'hkstocks',
+                includeChart: false,
+                includeAnalyzer: false,
+                extraClass: 'hk'
+            });
+            renderNewsStack(cryptoLatest, payload.crypto_latest || [], {
+                badgeLabel: 'Crypto',
+                badgeClass: '',
+                searchSource: 'crypto'
+            });
+            renderNewsStack(hkLatest, payload.hk_latest || [], {
+                badgeLabel: 'HK',
+                badgeClass: 'hk',
+                searchSource: 'hkstocks'
+            });
+            updateRefreshIndicator();
+        } catch (error) {
+            console.error('刷新仪表盘失败', error);
+        }
+    };
+
+    refreshDashboard();
+    setInterval(refreshDashboard, REFRESH_INTERVAL_MS);
+})();
+</script>
+{% endif %}
 {% endblock %}

@@ -1,0 +1,42 @@
+INFO:     Will watch for changes in these directories: ['/Users/hk00604ml/cjy/MscProject-NewsAgent2025']
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [64685] using StatReload
+/Users/hk00604ml/cjy/MscProject-NewsAgent2025/.venv/lib/python3.11/site-packages/jieba/_compat.py:18: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+INFO:telethon.crypto.aes:libssl detected, it will be used for encryption
+INFO:root:✓ 多数据源分析器初始化完成
+INFO:     Started server process [64695]
+INFO:     Waiting for application startup.
+INFO:src.realtime_ingest:启动实时新闻摄取管道，数据库: /Users/hk00604ml/cjy/MscProject-NewsAgent2025/testdb_cryptonews.db
+INFO:src.crypto_analysis.model_loader:正在加载 KeyBERT 模型: paraphrase-multilingual-MiniLM-L12-v2...
+INFO:sentence_transformers.SentenceTransformer:Use pytorch device_name: mps
+INFO:sentence_transformers.SentenceTransformer:Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+INFO:src.crypto_analysis.model_loader:✓ 成功加载 KeyBERT 模型: paraphrase-multilingual-MiniLM-L12-v2
+INFO:src.crypto_analysis.model_loader:正在加载 spaCy 模型: zh_core_web_sm...
+INFO:src.crypto_analysis.model_loader:正在加载 spaCy 模型: zh_core_web_lg...
+INFO:src.crypto_analysis.model_loader:✓ 成功加载 spaCy 模型: zh_core_web_lg
+INFO:telethon.network.mtprotosender:Connecting to 91.108.56.117:443/TcpFull...
+INFO:telethon.network.mtprotosender:Connection to 91.108.56.117:443/TcpFull complete!
+ERROR:src.realtime_ingest:实时新闻管道启动失败: database is locked
+Traceback (most recent call last):
+  File "/Users/hk00604ml/cjy/MscProject-NewsAgent2025/src/realtime_ingest.py", line 65, in start
+    await self._producer.start()
+  File "/Users/hk00604ml/cjy/MscProject-NewsAgent2025/src/crawler/crpyto_news/producer.py", line 32, in start
+    await self.client.start()
+  File "/Users/hk00604ml/cjy/MscProject-NewsAgent2025/.venv/lib/python3.11/site-packages/telethon/client/auth.py", line 135, in _start
+    await self.connect()
+  File "/Users/hk00604ml/cjy/MscProject-NewsAgent2025/.venv/lib/python3.11/site-packages/telethon/client/telegrambaseclient.py", line 606, in connect
+    me = await self.get_me()
+         ^^^^^^^^^^^^^^^^^^^
+  File "/Users/hk00604ml/cjy/MscProject-NewsAgent2025/.venv/lib/python3.11/site-packages/telethon/client/users.py", line 170, in get_me
+    me = (await self(
+          ^^^^^^^^^^^
+  File "/Users/hk00604ml/cjy/MscProject-NewsAgent2025/.venv/lib/python3.11/site-packages/telethon/client/users.py", line 30, in __call__
+    return await self._call(self._sender, request, ordered=ordered)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/hk00604ml/cjy/MscProject-NewsAgent2025/.venv/lib/python3.11/site-packages/telethon/client/users.py", line 93, in _call
+    await utils.maybe_async(self.session.process_entities(result))
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/hk00604ml/cjy/MscProject-NewsAgent2025/.venv/lib/python3.11/site-packages/telethon/sessions/sqlite.py", line 301, in process_entities
+    c.executemany(
+sqlite3.OperationalError: database is locked

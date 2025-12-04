@@ -2,6 +2,7 @@
 关键词提取模块
 test git
 """
+import logging
 import os
 import sys
 from typing import List, Tuple, Dict
@@ -25,7 +26,9 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 sys.path.insert(0, PROJECT_ROOT)
 
 from config import KEYBERT_MODEL, TOP_N_KEYWORDS, KEYWORD_NGRAM_RANGE
-from model_loader import get_keybert_model, get_spacy_model
+from pathlib import Path
+
+from src.crypto_analysis.model_loader import get_keybert_model, get_spacy_model
 
 try:
     from keybert import KeyBERT
@@ -35,10 +38,32 @@ except ImportError:
     print("⚠️  KeyBERT 未安装，请运行: pip install keybert sentence-transformers")
 
 
+logger = logging.getLogger(__name__)
+
+
 class CryptoAnalyzer:
     def __init__(self, model_name: str = None):
         self.model_name = model_name or KEYBERT_MODEL
         self.coin_dict = self._load_coin_dict()
+
+        # 停用词配置
+        self.stopwords = set()
+        default_stopwords = Path(__file__).resolve().parent / "stopwords.txt"
+        override_stopwords = os.getenv("CRYPTO_STOPWORDS_PATH")
+        if override_stopwords:
+            candidate = Path(override_stopwords)
+            self.stopwords_path = candidate if candidate.exists() else default_stopwords
+        else:
+            if default_stopwords.exists():
+                self.stopwords_path = default_stopwords
+            else:
+                crawler_stopwords = (
+                    Path(__file__).resolve().parents[2]
+                    / "crawler"
+                    / "crpyto_news"
+                    / "stopwords.txt"
+                )
+                self.stopwords_path = crawler_stopwords if crawler_stopwords.exists() else default_stopwords
 
         # ✅ 使用统一的模型加载器，避免重复加载
         # KeyBERT 模型
@@ -57,18 +82,20 @@ class CryptoAnalyzer:
         else:
             self.matcher = None
 
-    def _load_stopwords(self, path: str = "stopwords.txt"):
-        if not self.stopwords:
-            try:
-                with open(path, "r", encoding="utf-8") as f:
-                    self.stopwords = set(line.strip() for line in f if line.strip())
-            except Exception as e:
-                print(f"停用词加载失败: {e}")
-                self.stopwords = set()
+    def _load_stopwords(self):
+        if self.stopwords:
+            return
+        try:
+            with open(self.stopwords_path, "r", encoding="utf-8") as f:
+                self.stopwords = {line.strip() for line in f if line.strip()}
+        except Exception as e:
+            print(f"停用词加载失败: {e}")
+            self.stopwords = set()
 
     def spacy_ner_keywords(self, text: str) -> List[str]:
         if not self.nlp:
             return []
+        self._load_stopwords()
         doc = self.nlp(text)
         entities = set()
         for token in doc:
@@ -126,6 +153,7 @@ class CryptoAnalyzer:
 
     def tokenize_and_filter(self, text):
         # 这是你的分词和过滤函数定义，应确保在类中
+        self._load_stopwords()
         tokens = jieba.lcut(text)
         if self.stopwords:
             tokens = [tok for tok in tokens if tok not in self.stopwords]
@@ -153,7 +181,8 @@ class CryptoAnalyzer:
     def _load_coin_dict(self):
         """从JSON文件加载币种词典"""
         try:
-            with open("coin_dict.json", 'r', encoding='utf-8') as f:
+            coin_dict_path = Path(__file__).resolve().parent / "coin_dict.json"
+            with coin_dict_path.open('r', encoding='utf-8') as f:
                 return json.load(f)
         except Exception as e:
             print(f"Failed to load coin_dict.json: {e}")
@@ -184,6 +213,10 @@ class CryptoAnalyzer:
                     mentioned_coins.add(coin_id)
                     break
         return list(mentioned_coins)
+
+    async def run_analysis(self, db_path: str) -> None:  # pragma: no cover - compatibility shim
+        """保留旧接口以兼容历史调用，实时流程已在写入时完成分析。"""
+        logger.debug("run_analysis(%s) 调用已忽略：实时流程在写入阶段完成关键词/币种提取", db_path)
 
 
 

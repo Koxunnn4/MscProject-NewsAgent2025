@@ -30,6 +30,10 @@ class NewsSearchEngine:
         
 
         
+        self.has_url_column = False
+        self.has_original_text_column = False
+        self.has_abstract_column = False
+
         self._load_news_data()
         self._build_tfidf_matrix()
         
@@ -53,36 +57,40 @@ class NewsSearchEngine:
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
-            # 优先尝试读取包含 url 列
-            has_url = False
-            try:
-                cursor.execute(
-                    """
-                    SELECT id, channel_id, text, keywords, currency, date, url 
-                    FROM messages 
-                    WHERE text IS NOT NULL AND text != ''
-                    ORDER BY date DESC
-                    """
-                )
-                has_url = True
-            except Exception:
-                cursor.execute(
-                    """
-                    SELECT id, channel_id, text, keywords, currency, date 
-                    FROM messages 
-                    WHERE text IS NOT NULL AND text != ''
-                    ORDER BY date DESC
-                    """
-                )
+
+            cursor.execute("PRAGMA table_info(messages)")
+            columns = {row[1] for row in cursor.fetchall()}
+            self.has_url_column = "url" in columns
+            self.has_original_text_column = "original_text" in columns
+            self.has_abstract_column = "abstract" in columns
+
+            select_fields = ["id", "channel_id", "text", "keywords", "currency", "date"]
+            if self.has_original_text_column:
+                select_fields.append("original_text")
+            if self.has_url_column:
+                select_fields.append("url")
+            if self.has_abstract_column:
+                select_fields.append("abstract")
+
+            sql = (
+                f"SELECT {', '.join(select_fields)} FROM messages "
+                "WHERE text IS NOT NULL AND text != '' ORDER BY date DESC"
+            )
+            cursor.execute(sql)
             rows = cursor.fetchall()
             self.news_data = []
 
             for row in rows:
-                if has_url:
-                    news_id, channel_id, text, keywords, currency, date, url = row
-                else:
-                    news_id, channel_id, text, keywords, currency, date = row
-                    url = ""
+                row_dict = dict(zip(select_fields, row))
+                news_id = row_dict.get("id")
+                channel_id = row_dict.get("channel_id") or ''
+                text = row_dict.get("text")
+                keywords = row_dict.get("keywords") or ''
+                currency = row_dict.get("currency") or ''
+                date = row_dict.get("date")
+                url = row_dict.get("url") if self.has_url_column else ""
+                original_text = row_dict.get("original_text") if self.has_original_text_column else None
+                abstract = row_dict.get("abstract") if self.has_abstract_column else None
                 # 清理文本
                 cleaned_text = self._clean_text(text)
                 if cleaned_text:  # 只保留有效文本
@@ -92,13 +100,14 @@ class NewsSearchEngine:
                         'channel_id': channel_id or '',
                         'title': title,
                         'text': cleaned_text,
-                        'original_text': text,
+                        'original_text': original_text or text,
                         'keywords': keywords or '',
                         'currency': currency or '',
                         'date': date,
                         'url': url or '',
                         'source': channel_id or 'Telegram',
-                        'source_type': 'crypto'
+                        'source_type': 'crypto',
+                        'abstract': abstract or ''
                     })
             
             conn.close()
@@ -306,6 +315,47 @@ class NewsSearchEngine:
         except Exception as e:
             logger.error(f"生成摘要失败: {e}")
             return "模型不可用"
+
+    def _ensure_abstract_column(self) -> bool:
+        if self.has_abstract_column:
+            return True
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute("ALTER TABLE messages ADD COLUMN abstract TEXT")
+            conn.commit()
+            conn.close()
+            self.has_abstract_column = True
+            return True
+        except sqlite3.OperationalError as exc:
+            if "duplicate column name" in str(exc).lower():
+                self.has_abstract_column = True
+                return True
+            logger.error(f"添加摘要列失败: {exc}")
+            return False
+        except Exception as exc:
+            logger.error(f"添加摘要列失败: {exc}")
+            return False
+
+    def persist_summary(self, news_id: int, summary: str) -> None:
+        if not summary or not news_id:
+            return
+        if not self._ensure_abstract_column():
+            return
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute("UPDATE messages SET abstract = ? WHERE id = ?", (summary, news_id))
+            conn.commit()
+            conn.close()
+        except Exception as exc:
+            logger.error(f"摘要写回数据库失败: {exc}")
+            return
+
+        for item in self.news_data:
+            if item.get('id') == news_id:
+                item['abstract'] = summary
+                break
 
     def _parse_date_str(self, date_str: str):
         """

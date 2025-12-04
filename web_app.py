@@ -13,11 +13,16 @@ import sys
 from collections import Counter
 import re
 from datetime import datetime, timedelta
+from pathlib import Path
 from config import HISTORY_DB_PATH, CRYPTO_DB_PATH
+import requests
+
+from src.realtime_ingest import get_realtime_ingestor
 
 # --- Start of web_analyzer integration ---
 
 # 添加项目根目录到路径，以便导入分析器模块
+APP_ROOT = Path(__file__).resolve().parent
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
@@ -99,11 +104,155 @@ def _enhance_news_results(results: List[Dict]):
     for news in results:
         news.setdefault('source_type', 'crypto')
         news['source_badge'] = SOURCE_BADGES.get(news['source_type'], 'News')
+        if not news.get('summary') and news.get('abstract'):
+            news['summary'] = news['abstract']
         news['keyword_list'] = _split_keywords(news.get('keywords', ''))
         if not news.get('title'):
             news['title'] = (news.get('text') or '')[:80]
         resolved_source = _resolve_channel_label(news.get('source'), news.get('channel_id'))
-        news['source'] = resolved_source or 'Web3 Feed'
+        original_source = news.get('source') or news.get('channel_id')
+        news['source'] = resolved_source or original_source or 'Web3 Feed'
+
+
+FNG_API_ENDPOINT = "https://api.alternative.me/fng/?limit=1"
+
+# 默认关闭实时管道，除非显式设置 ENABLE_REALTIME_PIPELINE=1
+REALTIME_PIPELINE_ENABLED = os.getenv("ENABLE_REALTIME_PIPELINE", "0") == "1"
+
+realtime_ingestor = None
+if REALTIME_PIPELINE_ENABLED:
+    try:
+        realtime_ingestor = get_realtime_ingestor(Path(CRYPTO_DB_PATH))
+    except Exception as exc:
+        logging.error("初始化实时新闻管道失败: %s", exc)
+        realtime_ingestor = None
+else:
+    logging.info("实时管道已禁用（默认离线模式，使用本地数据库进行分析）")
+
+
+def _get_int_from_env(env_name: str, default: int) -> int:
+    raw_value = os.getenv(env_name)
+    if raw_value in (None, ""):
+        return default
+    try:
+        return int(raw_value)
+    except ValueError:
+        logging.warning("环境变量 %s=%s 非法，默认采用 %s", env_name, raw_value, default)
+        return default
+
+
+AUTO_REFRESH_INTERVAL = _get_int_from_env("AUTO_REFRESH_INTERVAL", 60)
+AUTO_REFRESH_ENABLED = REALTIME_PIPELINE_ENABLED and AUTO_REFRESH_INTERVAL > 0
+
+
+def fetch_fear_greed_index() -> Dict[str, Optional[str]]:
+    """从 Alternative.me 获取 Crypto Fear & Greed Index。"""
+    fallback = {
+        "value": None,
+        "classification": "数据不可用",
+        "value_class": "neutral",
+        "timestamp": None,
+    }
+    try:
+        response = requests.get(FNG_API_ENDPOINT, timeout=5)
+        response.raise_for_status()
+        payload = response.json() or {}
+        entry = (payload.get("data") or [fallback])[0]
+        value = entry.get("value") or fallback["value"]
+        classification_raw = (
+            entry.get("value_classification")
+            or entry.get("classification")
+            or fallback["classification"]
+        )
+        classification_str = str(classification_raw).strip() or "未知"
+        class_slug = classification_str.lower().replace(' ', '-')
+        allowed_classes = {"extreme-greed", "greed", "neutral", "fear", "extreme-fear"}
+        value_class = class_slug if class_slug in allowed_classes else "neutral"
+        timestamp_raw = entry.get("timestamp")
+        readable_time = None
+        if timestamp_raw:
+            try:
+                readable_time = datetime.fromtimestamp(int(timestamp_raw)).strftime("%Y-%m-%d %H:%M")
+            except Exception:
+                readable_time = None
+        return {
+            "value": value,
+            "classification": classification_str,
+            "value_class": value_class,
+            "timestamp": readable_time,
+        }
+    except Exception as exc:
+        logging.warning("获取恐慌指数失败: %s", exc)
+        return fallback
+
+
+def resolve_tradingview_symbol(term: Optional[str], source: str = DEFAULT_SOURCE) -> Optional[str]:
+    """根据关键词推断 TradingView 的交易对符号。"""
+    if not term:
+        return None
+    sanitized = re.sub(r"[^A-Za-z0-9]", "", str(term).upper())
+    if not sanitized:
+        return None
+    if source == "hkstocks":
+        if sanitized.isdigit():
+            return f"HKEX:{sanitized}"
+        if sanitized.startswith("HK") and sanitized[2:].isdigit():
+            return f"HKEX:{sanitized[2:]}"
+        return None
+    if sanitized.endswith("USDT") or sanitized.endswith("USD"):
+        return sanitized
+    if len(sanitized) <= 6:
+        return f"{sanitized}USDT"
+    return sanitized
+
+
+def build_dashboard_snapshot() -> Dict[str, List[Dict]]:
+    """构建首页仪表盘所需的数据。"""
+    snapshot = {
+        "crypto_trending": [],
+        "hk_trending": [],
+        "crypto_latest": [],
+        "hk_latest": [],
+        "spotlight_symbols": [],
+        "fear_greed": fetch_fear_greed_index(),
+    }
+
+    try:
+        crypto_engine = get_search_engine("crypto")
+        snapshot["crypto_trending"] = crypto_engine.get_top_keywords_with_counts(6)
+        crypto_latest = crypto_engine.get_recent_news(limit=4)
+        _enhance_news_results(crypto_latest)
+        snapshot["crypto_latest"] = crypto_latest
+        for item in snapshot["crypto_trending"]:
+            item["symbol"] = resolve_tradingview_symbol(item.get("keyword"))
+    except Exception as exc:
+        logging.error("加载 Crypto 仪表盘数据失败: %s", exc)
+
+    try:
+        hk_engine = get_search_engine("hkstocks")
+        snapshot["hk_trending"] = hk_engine.get_top_keywords_with_counts(6)
+        hk_latest = hk_engine.get_recent_news(limit=4)
+        _enhance_news_results(hk_latest)
+        snapshot["hk_latest"] = hk_latest
+        for item in snapshot["hk_trending"]:
+            item["symbol"] = resolve_tradingview_symbol(item.get("keyword"), "hkstocks")
+    except Exception as exc:
+        logging.error("加载港股仪表盘数据失败: %s", exc)
+
+    spotlight = []
+    for item in snapshot["crypto_trending"][:4]:
+        symbol = resolve_tradingview_symbol(item.get("keyword"))
+        if not symbol:
+            continue
+        spotlight.append({
+            "keyword": item.get("keyword"),
+            "count": item.get("count"),
+            "symbol": symbol,
+            "url": f"https://www.tradingview.com/chart/?symbol={symbol}",
+        })
+    snapshot["spotlight_symbols"] = spotlight
+
+    return snapshot
 
 class WebSimilarityAnalyzer:
     """面向 Web 的多数据源相似度分析调度器"""
@@ -275,10 +424,43 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # 配置模板目录
 templates = Jinja2Templates(directory="templates_UI")
 
+
+@app.on_event("startup")
+async def startup_realtime_pipeline():
+    if not REALTIME_PIPELINE_ENABLED:
+        logging.info("启动: 离线模式 (未启动实时抓取)")
+        return
+    if realtime_ingestor is None:
+        logging.warning("启动: 期望实时模式，但 ingestor 未初始化")
+        return
+    logging.info("启动: 实时模式，初始化抓取任务")
+    await realtime_ingestor.start()
+
+
+@app.on_event("shutdown")
+async def shutdown_realtime_pipeline():
+    if not REALTIME_PIPELINE_ENABLED or realtime_ingestor is None:
+        return
+    await realtime_ingestor.stop()
+
 # 主页
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
-    return templates.TemplateResponse("home.html", {"request": request, "source_options": SOURCE_OPTIONS})
+    snapshot = build_dashboard_snapshot()
+    context = {
+        "request": request,
+        "source_options": SOURCE_OPTIONS,
+        "auto_refresh": AUTO_REFRESH_ENABLED,
+        "refresh_interval": AUTO_REFRESH_INTERVAL,
+        **snapshot,
+    }
+    return templates.TemplateResponse("home.html", context)
+
+
+@app.get("/api/dashboard", response_class=JSONResponse)
+async def dashboard_snapshot_api():
+    snapshot = build_dashboard_snapshot()
+    return JSONResponse(snapshot)
 
 # 新闻搜索页面
 @app.get("/search", response_class=HTMLResponse)
@@ -315,13 +497,49 @@ async def search_news_get(request: Request, keyword: str = "",
             result_summary = f"展示最新 {len(results)} 条资讯"
 
         for news in results:
-            news['summary'] = engine.generate_summary(news['original_text'])
+            candidate_summary = (news.get('abstract') or '').strip()
+            text_for_summary = news.get('original_text') or news.get('text') or ''
+            if candidate_summary:
+                news['summary'] = candidate_summary
+                continue
+
+            generated_summary = engine.generate_summary(text_for_summary)
+            news['summary'] = generated_summary
+            if generated_summary and generated_summary != "模型不可用":
+                try:
+                    engine.persist_summary(news.get('id'), generated_summary)
+                except Exception as exc:
+                    logging.debug("摘要写回失败: %s", exc)
 
         _enhance_news_results(results)
 
         top_keywords_counts = engine.get_top_keywords_with_counts(20)
         max_count = max([item["count"] for item in top_keywords_counts]) if top_keywords_counts else 1
         min_count = min([item["count"] for item in top_keywords_counts]) if top_keywords_counts else 0
+
+        trading_symbol = resolve_tradingview_symbol(clean_keyword, source_key) if keyword_mode else None
+        related_symbols = []
+        seen_symbols = set()
+
+        for news in results:
+            currency_field = news.get('currency') or ''
+            candidates = _split_keywords(currency_field) if currency_field else []
+            if not candidates and currency_field:
+                candidates = [currency_field]
+            for candidate in candidates:
+                symbol = resolve_tradingview_symbol(candidate, source_key)
+                if symbol and symbol not in seen_symbols:
+                    seen_symbols.add(symbol)
+                    related_symbols.append({
+                        "label": candidate,
+                        "symbol": symbol,
+                        "url": f"https://www.tradingview.com/chart/?symbol={symbol}",
+                    })
+                    news.setdefault('trading_symbol', symbol)
+                    if trading_symbol is None:
+                        trading_symbol = symbol
+            if 'trading_symbol' not in news:
+                news['trading_symbol'] = resolve_tradingview_symbol(currency_field, source_key)
 
         if keyword_mode:
             trend_day = engine.get_keyword_trend(clean_keyword, granularity="day")
@@ -347,7 +565,9 @@ async def search_news_get(request: Request, keyword: str = "",
             "source": source_key,
             "source_label": SOURCE_LABEL_MAP[source_key],
             "available_sources": SOURCE_OPTIONS,
-            "search_value": clean_keyword
+            "search_value": clean_keyword,
+            "trading_symbol": trading_symbol,
+            "related_symbols": related_symbols,
         })
     except Exception as e:
         logger.error(f"搜索出错: {e}")

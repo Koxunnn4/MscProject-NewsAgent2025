@@ -20,6 +20,8 @@ matplotlib>=3.5.0
 seaborn>=0.12.0
 
 # Web API
+fastapi>=0.110.0
+uvicorn[standard]>=0.24.0
 flask>=2.3.0
 flask-cors>=4.0.0
 
@@ -38,6 +40,12 @@ beautifulsoup4>=4.12.0
 lxml>=4.9.0
 requests>=2.31.0
 selenium>=4.15.0
+
+# Realtime ingestion / messaging
+redis>=5.0.0
+telethon>=1.34.0
+pyyaml>=6.0.0
+PySocks>=1.7.1
 
 # Testing (optional)
 pytest>=7.0.0

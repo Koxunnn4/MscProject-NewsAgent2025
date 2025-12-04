@@ -1,0 +1,139 @@
+/Users/hk00604ml/cjy/MscProject-NewsAgent2025/.venv/lib/python3.11/site-packages/jieba/_compat.py:18: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+2025-11-28 20:33:58,465 - INFO - libssl detected, it will be used for encryption
+2025-11-28 20:33:58,519 - INFO - 正在加载 KeyBERT 模型: paraphrase-multilingual-MiniLM-L12-v2...
+2025-11-28 20:33:58,519 - INFO - Use pytorch device_name: mps
+2025-11-28 20:33:58,519 - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-11-28 20:34:04,068 - INFO - ✓ 成功加载 KeyBERT 模型: paraphrase-multilingual-MiniLM-L12-v2
+2025-11-28 20:34:04,068 - INFO - 正在加载 spaCy 模型: zh_core_web_sm...
+2025-11-28 20:34:04,068 - INFO - 正在加载 spaCy 模型: zh_core_web_lg...
+2025-11-28 20:34:04,969 - INFO - ✓ 成功加载 spaCy 模型: zh_core_web_lg
+2025-11-28 20:34:04,976 - INFO - 生产者和消费者初始化成功 (DB: /Users/hk00604ml/cjy/MscProject-NewsAgent2025/testdb_cryptonews.db)
+2025-11-28 20:34:04,976 - INFO - Connecting to 91.108.56.117:443/TcpFull...
+2025-11-28 20:34:05,012 - INFO - Connection to 91.108.56.117:443/TcpFull complete!
+2025-11-28 20:34:05,377 - INFO - >>> 开始实时模式
+2025-11-28 20:34:54,599 - INFO - Channel: -1001387109317
+2025-11-28 20:34:54,599 - INFO - Time: 2025-11-28T12:34:02+00:00
+2025-11-28 20:34:54,599 - INFO - Content: **CME数据中心故障影响数万亿美元合约**
+
+BlockBeats 消息，11 月 28 日，CME Group 的期货和期权交易因数据中心故障而暂停，影响范围波及数万亿美元合约的市场，包括 S&P 500 指数期货、美国国债、原油、汽油和棕榈油等。外汇平台 EBS 在停机数小时后于伦敦时间中午 12 点恢复服务。
+
+在新加坡，有石油交易员表示，CME 是全球市场机制的关键组成部分。新加坡 Reed Capital Partners 的副首席投资官 Gerald Gan 指出，此次故障「非常令人烦恼」，并表示替代平台的流动性可能不如 CME 充足。Amundi SA 的投资组合经理 Amelie Derambure 表示，幸好周五是交易清淡的一天，否则这将是一个「相当大的障碍」。
+
+此次故障发生在感恩节次日，美国市场仅有半日交易。Forte Securities 驻伦敦股票销售专家 Emmanuel Valavanis 表示，在一个月和年终交易的最后一天发生这种事，影响了数万亿美元的交易，情况非常糟糕。该故障已超过 2019 年因技术错误导致的长达数小时的停机事件。(彭博社)
+
+原文链接 [https://m.theblockbeats.info/flash/322339](https://m.theblockbeats.info/flash/322339?from=telegram)
+2025-11-28 20:34:54,599 - INFO - --------------------------------------------------
+Building prefix dict from the default dictionary ...
+2025-11-28 20:34:54,648 - DEBUG - Building prefix dict from the default dictionary ...
+Loading model from cache /var/folders/5k/d6j1b_9n7_xffsspn3t0t79c0000gn/T/jieba.cache
+2025-11-28 20:34:54,648 - DEBUG - Loading model from cache /var/folders/5k/d6j1b_9n7_xffsspn3t0t79c0000gn/T/jieba.cache
+Loading model cost 0.222 seconds.
+2025-11-28 20:34:54,870 - DEBUG - Loading model cost 0.222 seconds.
+Prefix dict has been built successfully.
+2025-11-28 20:34:54,870 - DEBUG - Prefix dict has been built successfully.
+2025-11-28 20:48:05,129 - INFO - Channel: -1001387109317
+2025-11-28 20:48:05,131 - INFO - Time: 2025-11-28T12:33:02+00:00
+2025-11-28 20:48:05,131 - INFO - Content: **Yala：机构模式下所有原生BTC将从协议中移除，未来将转向AI驱动的智能体预测方向**
+
+BlockBeats 消息，11 月 28 日，Yala 在 X 平台发文表示，机构模式下的所有原生 BTC 将从 Yala 协议中撤出，此过程与散户活动完全分开，不会影响散户的 YU 余额或赎回权利。完整的赎回计划和时间表将于 12 月 15 日公布。
+
+此外，Yala 将发布更新版路线图，概述下一阶段的发展，包括转向 AI 驱动的智能体预测方向。
+
+原文链接 [https://m.theblockbeats.info/flash/322338](https://m.theblockbeats.info/flash/322338?from=telegram)
+2025-11-28 20:48:05,131 - INFO - --------------------------------------------------
+2025-11-28 22:45:10,576 - WARNING - Server closed the connection: [Errno 49] Can't assign requested address
+2025-11-28 22:45:10,578 - INFO - Connection closed while receiving data: [Errno 49] Can't assign requested address
+2025-11-28 22:45:10,578 - INFO - Closing current connection to begin reconnect...
+2025-11-28 22:45:10,578 - INFO - Connecting to 91.108.56.117:443/TcpFull...
+2025-11-28 22:45:10,579 - INFO - <class 'OSError'> during disconnect: [Errno 49] Can't assign requested address
+2025-11-28 22:51:13,233 - WARNING - Attempt 1 at connecting failed: TimeoutError: 
+2025-11-28 22:51:25,447 - WARNING - Attempt 2 at connecting failed: TimeoutError: 
+2025-11-28 22:51:37,668 - WARNING - Attempt 3 at connecting failed: TimeoutError: 
+2025-11-28 22:51:49,782 - WARNING - Attempt 4 at connecting failed: TimeoutError: 
+2025-11-28 22:52:01,901 - WARNING - Attempt 5 at connecting failed: TimeoutError: 
+2025-11-28 22:52:14,065 - WARNING - Attempt 6 at connecting failed: TimeoutError: 
+2025-11-28 22:52:16,097 - INFO - Failed reconnection attempt 1 with ConnectionError
+2025-11-28 22:52:18,133 - INFO - Connecting to 91.108.56.117:443/TcpFull...
+2025-11-28 22:52:28,341 - WARNING - Attempt 1 at connecting failed: TimeoutError: 
+2025-11-28 22:52:40,551 - WARNING - Attempt 2 at connecting failed: TimeoutError: 
+2025-11-28 22:52:52,759 - WARNING - Attempt 3 at connecting failed: TimeoutError: 
+2025-11-28 22:53:04,973 - WARNING - Attempt 4 at connecting failed: TimeoutError: 
+2025-11-28 22:53:17,171 - WARNING - Attempt 5 at connecting failed: TimeoutError: 
+2025-11-28 22:53:29,373 - WARNING - Attempt 6 at connecting failed: TimeoutError: 
+2025-11-28 22:53:31,405 - INFO - Failed reconnection attempt 2 with ConnectionError
+2025-11-28 22:53:33,437 - INFO - Connecting to 91.108.56.117:443/TcpFull...
+2025-11-28 22:53:43,613 - WARNING - Attempt 1 at connecting failed: TimeoutError: 
+2025-11-28 22:53:55,817 - WARNING - Attempt 2 at connecting failed: TimeoutError: 
+2025-11-28 22:54:08,022 - WARNING - Attempt 3 at connecting failed: TimeoutError: 
+2025-11-28 22:54:20,232 - WARNING - Attempt 4 at connecting failed: TimeoutError: 
+2025-11-28 22:54:32,446 - WARNING - Attempt 5 at connecting failed: TimeoutError: 
+2025-11-28 22:54:44,656 - WARNING - Attempt 6 at connecting failed: TimeoutError: 
+2025-11-28 22:54:46,694 - INFO - Failed reconnection attempt 3 with ConnectionError
+2025-11-28 22:54:48,723 - INFO - Connecting to 91.108.56.117:443/TcpFull...
+2025-11-28 22:54:58,894 - WARNING - Attempt 1 at connecting failed: TimeoutError: 
+2025-11-28 22:55:11,090 - WARNING - Attempt 2 at connecting failed: TimeoutError: 
+2025-11-28 22:55:23,297 - WARNING - Attempt 3 at connecting failed: TimeoutError: 
+2025-11-28 22:55:35,505 - WARNING - Attempt 4 at connecting failed: TimeoutError: 
+2025-11-28 22:55:47,718 - WARNING - Attempt 5 at connecting failed: TimeoutError: 
+2025-11-28 22:55:59,922 - WARNING - Attempt 6 at connecting failed: TimeoutError: 
+2025-11-28 22:56:01,958 - INFO - Failed reconnection attempt 4 with ConnectionError
+2025-11-28 22:56:03,991 - INFO - Connecting to 91.108.56.117:443/TcpFull...
+2025-11-28 22:56:14,161 - WARNING - Attempt 1 at connecting failed: TimeoutError: 
+2025-11-28 22:56:26,373 - WARNING - Attempt 2 at connecting failed: TimeoutError: 
+2025-11-28 22:56:38,597 - WARNING - Attempt 3 at connecting failed: TimeoutError: 
+2025-11-28 22:56:50,804 - WARNING - Attempt 4 at connecting failed: TimeoutError: 
+2025-11-28 22:57:03,020 - WARNING - Attempt 5 at connecting failed: TimeoutError: 
+2025-11-28 22:57:15,217 - WARNING - Attempt 6 at connecting failed: TimeoutError: 
+2025-11-28 22:57:17,249 - INFO - Failed reconnection attempt 5 with ConnectionError
+2025-11-28 22:57:19,278 - ERROR - Automatic reconnection failed 5 time(s)
+2025-11-28 22:57:19,278 - INFO - Disconnecting from 91.108.56.117:443/TcpFull...
+2025-11-28 22:57:19,278 - INFO - Disconnection from 91.108.56.117:443/TcpFull complete!
+2025-11-28 22:57:19,278 - INFO - Cannot get difference since the network is down: ConnectionError: Connection to Telegram failed 5 time(s)
+2025-11-28 22:57:19,279 - INFO - Not disconnecting (already have no connection)
+2025-11-28 22:57:19,279 - ERROR - Unhandled exception from keepalive_handle after cancelling <class '_asyncio.Task'> (<Task finished name='Task-8' coro=<UpdateMethods._keepalive_loop() done, defined at /Users/hk00604ml/cjy/MscProject-NewsAgent2025/.venv/lib/python3.11/site-packages/telethon/client/updates.py:485> exception=OperationalError('database is locked')>)
+Traceback (most recent call last):
+  File "/Users/hk00604ml/cjy/MscProject-NewsAgent2025/.venv/lib/python3.11/site-packages/telethon/helpers.py", line 176, in _cancel
+    await task
+  File "/Users/hk00604ml/cjy/MscProject-NewsAgent2025/.venv/lib/python3.11/site-packages/telethon/client/updates.py", line 521, in _keepalive_loop
+    await self._save_states_and_entities()
+  File "/Users/hk00604ml/cjy/MscProject-NewsAgent2025/.venv/lib/python3.11/site-packages/telethon/client/telegrambaseclient.py", line 701, in _save_states_and_entities
+    self.session.process_entities(
+  File "/Users/hk00604ml/cjy/MscProject-NewsAgent2025/.venv/lib/python3.11/site-packages/telethon/sessions/sqlite.py", line 301, in process_entities
+    c.executemany(
+sqlite3.OperationalError: database is locked
+2025-11-28 22:57:25,755 - ERROR - 运行过程中出现错误: database is locked
+2025-11-28 22:57:25,756 - INFO - Not disconnecting (already have no connection)
+2025-11-28 22:57:25,756 - ERROR - Unhandled exception from keepalive_handle after cancelling <class '_asyncio.Task'> (<Task finished name='Task-8' coro=<UpdateMethods._keepalive_loop() done, defined at /Users/hk00604ml/cjy/MscProject-NewsAgent2025/.venv/lib/python3.11/site-packages/telethon/client/updates.py:485> exception=OperationalError('database is locked')>)
+Traceback (most recent call last):
+  File "/Users/hk00604ml/cjy/MscProject-NewsAgent2025/.venv/lib/python3.11/site-packages/telethon/helpers.py", line 176, in _cancel
+    await task
+sqlite3.OperationalError: database is locked
+2025-11-28 22:57:32,267 - INFO - Consumer stream cancelled
+Mentioned Currencies:  MemeCore
+Keywords:  [('数据中心', 0.4378), ('市场', 0.4366), ('市场机制', 0.4288), ('期货', 0.4282), ('cme', 0.3938), ('美国市场', 0.3838), ('股票', 0.3735), ('新加坡', 0.3704), ('数万亿美元', 0.368), ('外汇', 0.3676)]
+Mentioned Currencies:  Bitcoin,MemeCore
+Keywords:  [('yala', 0.4063), ('更新版', 0.3926), ('移除', 0.351), ('下一阶段', 0.3247), ('撤出', 0.3214), ('协议', 0.3102), ('公布', 0.2939), ('发布', 0.2781), ('btc', 0.2774), ('计划', 0.2762)]
+Traceback (most recent call last):
+  File "/Users/hk00604ml/cjy/MscProject-NewsAgent2025/run_crypto_crawler.py", line 71, in <module>
+    asyncio.run(main(args_mode))
+  File "/Users/hk00604ml/.local/share/uv/python/cpython-3.11.14-macos-aarch64-none/lib/python3.11/asyncio/runners.py", line 190, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/Users/hk00604ml/.local/share/uv/python/cpython-3.11.14-macos-aarch64-none/lib/python3.11/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/hk00604ml/.local/share/uv/python/cpython-3.11.14-macos-aarch64-none/lib/python3.11/asyncio/base_events.py", line 654, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/Users/hk00604ml/cjy/MscProject-NewsAgent2025/run_crypto_crawler.py", line 53, in main
+    await producer.stop()
+  File "/Users/hk00604ml/cjy/MscProject-NewsAgent2025/src/crawler/crpyto_news/producer.py", line 35, in stop
+    await self.client.disconnect()
+  File "/Users/hk00604ml/cjy/MscProject-NewsAgent2025/.venv/lib/python3.11/site-packages/telethon/client/telegrambaseclient.py", line 746, in _disconnect_coro
+    await self._save_states_and_entities()
+  File "/Users/hk00604ml/cjy/MscProject-NewsAgent2025/.venv/lib/python3.11/site-packages/telethon/client/telegrambaseclient.py", line 701, in _save_states_and_entities
+    self.session.process_entities(
+  File "/Users/hk00604ml/cjy/MscProject-NewsAgent2025/.venv/lib/python3.11/site-packages/telethon/sessions/sqlite.py", line 301, in process_entities
+    c.executemany(
+sqlite3.OperationalError: database is locked

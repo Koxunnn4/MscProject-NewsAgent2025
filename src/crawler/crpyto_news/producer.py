@@ -35,7 +35,21 @@ class NewsProducer:
         await self.client.disconnect()
 
     def _format_message(self, message):
-        return {"id": message.id, "timestamp": message.date.isoformat(), "channel": str(message.chat_id), "content": message.text}
+        channel_username = None
+        channel_title = None
+        try:
+            channel_username = getattr(message.chat, 'username', None)
+            channel_title = getattr(message.chat, 'title', None)
+        except AttributeError:
+            pass
+        return {
+            "id": message.id,
+            "timestamp": message.date.isoformat(),
+            "channel": str(message.chat_id),
+            "channel_username": f"@{channel_username}" if channel_username else None,
+            "channel_title": channel_title,
+            "content": message.text
+        }
 
     async def process_message(self, message):
         if not message.text:

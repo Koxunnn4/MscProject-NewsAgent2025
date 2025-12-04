@@ -2,11 +2,13 @@
 
 {% block title %}{{ source_label }} · {{ keyword_heading or '新闻搜索' }}{% endblock %}
 
-{% block head %}{% endblock %}
-
 {% block content %}
-<section class="hero-card">
-    <h1 class="section-title">{{ source_label }} · {{ keyword_heading or '新闻搜索' }}</h1>
+<section class="search-hero glass-panel">
+    <div>
+        <p class="hero-kicker">{{ source_label }}</p>
+        <h1>{{ keyword_heading or '新闻搜索' }}</h1>
+        <p class="hero-subtitle">{{ result_summary or ('共 ' ~ total_results ~ ' 条结果') }}</p>
+    </div>
     <form class="search-form" method="get" action="/search">
         <input type="text" class="search-input" name="keyword" value="{{ search_value or '' }}" placeholder="输入想追踪的关键词">
         <select name="source" class="search-select">
@@ -14,81 +16,120 @@
                 <option value="{{ opt.key }}" {% if opt.key == source %}selected{% endif %}>{{ opt.label }}</option>
             {% endfor %}
         </select>
-        <button class="btn btn-primary search-button" type="submit">立即搜索</button>
+        <button class="btn btn-primary" type="submit">更新视图</button>
     </form>
-    <p class="meta-line">{{ result_summary or ('共 ' ~ total_results ~ ' 条结果') }} · 数据源：{{ source_label }}</p>
 </section>
 
-<section>
-    <h2 class="section-heading">热门关键词</h2>
-    <div class="keyword-cloud">
-        {% if top_keywords_counts %}
-            {% for item in top_keywords_counts %}
-                {% set kw = item['keyword'] %}
-                {% set count = item['count'] %}
-                {% set denom = (max_count - min_count) if (max_count - min_count) != 0 else 1 %}
-                {% set frac = (count - min_count) / denom %}
-                {% set hue = 200 - (80 * frac) %}
-                <a class="keyword-chip" href="/search?keyword={{ kw }}&source={{ source }}" style="background-color: hsl({{ hue }}, 70%, 92%); border-color: hsl({{ hue }}, 70%, 75%);">
-                    {{ kw }} · {{ count }}
-                </a>
-            {% endfor %}
-        {% else %}
-            <span class="keyword-chip" style="background: #edf2f7; color: #718096;">暂无关键词</span>
-        {% endif %}
-    </div>
-</section>
-
-<div class="page-layout">
-    <div>
-        {% if results %}
-            {% for news in results %}
-                <article class="news-card">
-                    <div class="news-card__meta">
-                        <span class="badge badge-source">{{ news.source_badge }}</span>
-                        <span class="badge badge-muted">{{ news.source }}</span>
-                        <span>{{ news.date }}</span>
-                        {% if news.similarity_score %}
-                            <span class="badge badge-muted" style="border-color: transparent; color: var(--accent-color); font-weight: 600;">相关度 {{ '{:.2f}'.format(news.similarity_score) }}</span>
-                        {% endif %}
-                    </div>
-                    <h3>{{ news.title }}</h3>
-                    {% if news.url %}
-                        <p><a href="{{ news.url }}" target="_blank">查看原文链接 ↗</a></p>
-                    {% endif %}
-                    <p><strong>摘要：</strong>{{ news.summary or '暂无摘要' }}</p>
-                    <details>
-                        <summary>展开原文</summary>
-                        <p style="white-space: pre-wrap;">{{ news.original_text }}</p>
-                    </details>
-                    {% if news.keyword_list %}
-                        <div class="news-card__footer">
-                            <div class="keyword-tags">
-                                {% for kw in news.keyword_list %}
-                                    <span class="keyword-tag">{{ kw }}</span>
-                                {% endfor %}
-                            </div>
-                        </div>
-                    {% endif %}
-                </article>
-            {% endfor %}
-        {% else %}
-            <div class="empty-state">
-                <p>没有找到相关新闻，可以尝试更换关键词或切换数据源。</p>
+<section class="search-layout">
+    <main>
+        <div class="keyword-row">
+            <h2>🔥 高频关键词</h2>
+            <div class="keyword-chips">
+                {% if top_keywords_counts %}
+                    {% for item in top_keywords_counts %}
+                        <a class="chip" href="/search?keyword={{ item.keyword }}&source={{ source }}">
+                            <span>{{ item.keyword }}</span>
+                            <small>{{ item.count }}</small>
+                        </a>
+                    {% endfor %}
+                {% else %}
+                    <span class="chip muted">暂无关键词</span>
+                {% endif %}
             </div>
-        {% endif %}
-    </div>
+        </div>
+
+        <div class="news-stream">
+            {% if results %}
+                {% for news in results %}
+                    <article class="news-card glass-panel">
+                        <header class="news-meta">
+                            <span class="badge">{{ news.source_badge }}</span>
+                            <span class="badge outline">{{ news.source }}</span>
+                            <span class="timestamp">{{ news.date }}</span>
+                            {% if news.similarity_score %}
+                                <span class="badge accent">相关度 {{ '{:.2f}'.format(news.similarity_score) }}</span>
+                            {% endif %}
+                        </header>
+                        <h3>{{ news.title }}</h3>
+                        <p class="summary">{{ news.summary or '暂无摘要' }}</p>
+                        <details>
+                            <summary>展开原文</summary>
+                            <p class="original">{{ news.original_text }}</p>
+                        </details>
+                        <div class="news-actions">
+                            {% if news.url %}<a href="{{ news.url }}" target="_blank" rel="noopener" class="mini-link">原文 ↗</a>{% endif %}
+                            {% if news.keyword_list %}
+                                {% for kw in news.keyword_list %}
+                                    <a href="/search?source={{ source }}&keyword={{ kw }}" class="mini-link">{{ kw }}</a>
+                                {% endfor %}
+                            {% endif %}
+                            {% if news.trading_symbol %}
+                                <a href="https://www.tradingview.com/chart/?symbol={{ news.trading_symbol }}" target="_blank" rel="noopener" class="mini-link">TradingView</a>
+                            {% endif %}
+                        </div>
+                    </article>
+                {% endfor %}
+            {% else %}
+                <div class="empty-card glass-panel">没有找到相关新闻，可以尝试更换关键词或切换数据源。</div>
+            {% endif %}
+        </div>
+    </main>
     <aside>
-        <div class="trend-card">
-            <h3 style="margin-bottom: 12px;">关键词日趋势</h3>
+        <div class="glass-panel side-card">
+            <div class="card-header">
+                <span>📈 TradingView 实时图</span>
+                <small>默认展示首个匹配交易对</small>
+            </div>
+            <div id="tradingview_container" class="tradingview-frame">
+                {% if trading_symbol %}
+                    <div id="tradingview_widget"></div>
+                {% else %}
+                    <p class="empty">暂无可匹配的交易对</p>
+                {% endif %}
+            </div>
+            {% if related_symbols %}
+                <div class="related-symbols">
+                    <p>相关交易对</p>
+                    <ul>
+                        {% for item in related_symbols[:6] %}
+                            <li><a href="{{ item.url }}" target="_blank" rel="noopener">{{ item.symbol }}</a><span>{{ item.label }}</span></li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="glass-panel side-card">
+            <div class="card-header">
+                <span>📊 热度趋势</span>
+                <small>日粒度</small>
+            </div>
             <canvas id="trendChart" height="220"></canvas>
         </div>
     </aside>
-</div>
+</section>
 {% endblock %}
 
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% if trading_symbol %}
+<script src="https://s3.tradingview.com/tv.js"></script>
+<script>
+    new TradingView.widget({
+        container_id: "tradingview_widget",
+        autosize: true,
+        symbol: "{{ trading_symbol }}",
+        interval: "30",
+        timezone: "Etc/UTC",
+        theme: "dark",
+        style: "1",
+        locale: "zh_CN",
+        toolbar_bg: "rgba(17,24,39,0.6)",
+        hide_side_toolbar: false,
+        allow_symbol_change: true
+    });
+</script>
+{% endif %}
 <script>
     const labels = JSON.parse('{{ trend_labels | safe }}');
     const counts = JSON.parse('{{ trend_counts | safe }}');
@@ -99,10 +140,10 @@
             data: {
                 labels: labels,
                 datasets: [{
-                    label: '每日热度',
+                    label: '日度热度',
                     data: counts,
-                    borderColor: '#2b6cb0',
-                    backgroundColor: 'rgba(43, 108, 176, 0.15)',
+                    borderColor: '#63b3ff',
+                    backgroundColor: 'rgba(99, 179, 255, 0.15)',
                     tension: 0.35,
                     pointRadius: 2,
                     borderWidth: 2
@@ -112,8 +153,8 @@
                 responsive: true,
                 plugins: { legend: { display: false } },
                 scales: {
-                    x: { ticks: { autoSkip: true, maxRotation: 0 } },
-                    y: { beginAtZero: true }
+                    x: { ticks: { color: '#A0AEC0', autoSkip: true, maxRotation: 0 }, grid: { color: 'rgba(160, 174, 192, 0.15)' } },
+                    y: { beginAtZero: true, ticks: { color: '#A0AEC0' }, grid: { color: 'rgba(160, 174, 192, 0.15)' } }
                 }
             }
         });

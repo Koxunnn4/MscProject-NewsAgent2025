@@ -3,32 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Web3 新闻分析平台{% endblock %}</title>
+    <title>{% block title %}Alpha Radar{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}">
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; background-color: #f8f9fa; }
-        .navbar { background-color: #fff; border-bottom: 1px solid #e2e8f0; padding: 0 24px; display: flex; align-items: center; height: 60px; }
-        .navbar-brand { font-size: 1.25rem; font-weight: 600; color: #2d3748; text-decoration: none; }
-        .nav { display: flex; gap: 16px; margin-left: 32px; }
-        .nav-link { text-decoration: none; color: #4a5568; font-size: 1rem; padding: 8px 12px; border-radius: 6px; transition: background-color 0.2s; }
-        .nav-link.active { font-weight: 600; color: #2b6cb0; }
-        .nav-link:hover { background-color: #edf2f7; }
-        .container { max-width: 1400px; margin: 24px auto; padding: 0 24px; }
-    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     {% block head %}{% endblock %}
 </head>
-<body>
-    <nav class="navbar">
-        <a class="navbar-brand" href="/">Web3 新闻分析平台</a>
-        <div class="nav">
-            {% set on_search_page = request.url.path in ['/', '/search'] %}
-            <a class="nav-link {% if on_search_page %}active{% endif %}" href="/search">新闻搜索</a>
-            <a class="nav-link {% if request.url.path == '/analyzer' %}active{% endif %}" href="/analyzer">关键词分析</a>
+<body class="app-shell">
+    <nav class="app-nav glass-panel">
+        <div class="nav-left">
+            <a class="brand" href="/">
+                <span class="brand-mark"></span>
+                <span class="brand-name">Alpha Radar</span>
+            </a>
+            <div class="nav-links">
+                <a class="nav-item {% if request.url.path == '/' %}active{% endif %}" href="/">仪表盘</a>
+                <a class="nav-item {% if request.url.path.startswith('/search') %}active{% endif %}" href="/search">新闻情报</a>
+                <a class="nav-item {% if request.url.path == '/analyzer' %}active{% endif %}" href="/analyzer">关键词分析</a>
+            </div>
+        </div>
+        <div class="nav-right">
+            <span class="nav-badge">Beta</span>
         </div>
     </nav>
-    <main class="container">
+    <main class="app-main">
         {% block content %}{% endblock %}
     </main>
+    <footer class="app-footer">
+        <span>© 2025 Alpha Radar · 市场情报工作台</span>
+        <span class="footer-links">
+            <a href="/analyzer">工作流指南</a>
+            <a href="https://www.alternative.me/crypto/fear-and-greed-index/" target="_blank" rel="noopener">情绪指数来源</a>
+        </span>
+    </footer>
     {% block scripts %}{% endblock %}
 </body>
 </html>

@@ -1,7 +1,7 @@
 """
 关键词和币种分析模块
 独立的离线分析脚本，不依赖 Redis 消息队列
-根据数据库中的 text 字段，重新计算 keywords 和 industry 字段并覆盖存储
+根据数据库中的 text 字段，重新计算 keywords 和 currency 字段并覆盖存储
 """
 import sqlite3
 import logging
@@ -61,7 +61,7 @@ class KeywordsAnalyzer:
             top_n: 提取的关键词数量
 
         Returns:
-            (keywords_str, industry_str) 元组
+            (keywords_str, currency_str) 元组
         """
         try:
             # 提取关键词
@@ -73,9 +73,9 @@ class KeywordsAnalyzer:
 
             # 识别币种
             mentioned_coins = self.analyzer.identify_currency(text)
-            industry_str = ",".join(mentioned_coins)
+            currency_str = ",".join(mentioned_coins)
 
-            return keywords_str, industry_str
+            return keywords_str, currency_str
 
         except Exception as e:
             logger.error(f"分析文本失败: {e}")
@@ -83,7 +83,7 @@ class KeywordsAnalyzer:
 
     def analyze_all_messages(self, batch_size: int = 10):
         """
-        批量分析所有消息，更新 keywords 和 industry 字段
+        批量分析所有消息，更新 keywords 和 currency 字段
 
         Args:
             batch_size: 每次提交的批量大小
@@ -110,13 +110,13 @@ class KeywordsAnalyzer:
                     continue
 
                 # 分析文本
-                keywords_str, industry_str = self.analyze_text(text)
+                keywords_str, currency_str = self.analyze_text(text)
 
                 # 更新数据库
                 try:
                     self.cursor.execute(
-                        "UPDATE messages SET keywords = ?, industry = ? WHERE id = ?",
-                        (keywords_str, industry_str, msg_id)
+                        "UPDATE messages SET keywords = ?, currency = ? WHERE id = ?",
+                        (keywords_str, currency_str, msg_id)
                     )
                     processed += 1
 
@@ -139,7 +139,7 @@ class KeywordsAnalyzer:
 
     def analyze_by_channel(self, channel_id: str, batch_size: int = 10):
         """
-        按频道分析消息，更新 keywords 和 industry 字段
+        按频道分析消息，更新 keywords 和 currency 字段
 
         Args:
             channel_id: 频道 ID
@@ -172,13 +172,13 @@ class KeywordsAnalyzer:
                     continue
 
                 # 分析文本
-                keywords_str, industry_str = self.analyze_text(text)
+                keywords_str, currency_str = self.analyze_text(text)
 
                 # 更新数据库
                 try:
                     self.cursor.execute(
-                        "UPDATE messages SET keywords = ?, industry = ? WHERE id = ?",
-                        (keywords_str, industry_str, msg_id)
+                        "UPDATE messages SET keywords = ?, currency = ? WHERE id = ?",
+                        (keywords_str, currency_str, msg_id)
                     )
                     processed += 1
 
@@ -200,7 +200,7 @@ class KeywordsAnalyzer:
 
     def analyze_by_date_range(self, start_date: str, end_date: str, batch_size: int = 10):
         """
-        按日期范围分析消息，更新 keywords 和 industry 字段
+        按日期范围分析消息，更新 keywords 和 currency 字段
 
         Args:
             start_date: 开始日期 (ISO 格式)
@@ -234,13 +234,13 @@ class KeywordsAnalyzer:
                     continue
 
                 # 分析文本
-                keywords_str, industry_str = self.analyze_text(text)
+                keywords_str, currency_str = self.analyze_text(text)
 
                 # 更新数据库
                 try:
                     self.cursor.execute(
-                        "UPDATE messages SET keywords = ?, industry = ? WHERE id = ?",
-                        (keywords_str, industry_str, msg_id)
+                        "UPDATE messages SET keywords = ?, currency = ? WHERE id = ?",
+                        (keywords_str, currency_str, msg_id)
                     )
                     processed += 1
 
@@ -278,7 +278,7 @@ def main():
     parser.add_argument(
         "--db",
         type=str,
-        default="stream.db",
+        default="/Users/hk00604ml/cjy/MscProject-NewsAgent2025/testdb_cryptonews.db",
         help="数据库路径"
     )
     parser.add_argument(
