@@ -13,63 +13,77 @@
             <a href="/search" class="btn btn-secondary">🔎 快速检索资讯</a>
         </div>
         <p class="refresh-indicator" data-region="refresh-indicator">数据每 60 秒自动刷新</p>
-        <div class="workflow-steps">
-            <div class="step">
-                <span>1</span>
-                <div>
-                    <h4>发现</h4>
-                    <p>关键词飙升榜筛选潜在叙事</p>
-                </div>
-            </div>
-            <div class="step">
-                <span>2</span>
-                <div>
-                    <h4>验证</h4>
-                    <p>摘要 + 情绪评估确认利好级别</p>
-                </div>
-            </div>
-            <div class="step">
-                <span>3</span>
-                <div>
-                    <h4>挖掘</h4>
-                    <p>相似词网络捕捉补涨候选</p>
-                </div>
-            </div>
-        </div>
     </div>
     <aside class="hero-cards">
         <div class="fng-card glass-panel compact" data-region="fng-card">
             <div class="card-header">
-                <span>Fear & Greed 指数</span>
+                <span>恐惧与贪婪指数</span>
                 <small>来源：alternative.me</small>
             </div>
-            <div class="fng-value {{ fear_greed.value_class }}" data-fng-value>{{ fear_greed.value or '—' }}</div>
-            <p class="fng-label" data-fng-label>{{ fear_greed.classification or '数据不可用' }}</p>
-            <p class="fng-meta" data-fng-meta>{% if fear_greed.timestamp %}更新于 {{ fear_greed.timestamp }}{% else %}暂无更新时间{% endif %}</p>
+            <div class="fng-meter">
+                <div class="fng-scale">
+                    <span>恐惧</span>
+                    <span>中性</span>
+                    <span>贪婪</span>
+                </div>
+                <div class="fng-progress">
+                    <div class="fng-fill {{ fear_greed.value_class }}" style="width: {{ (fear_greed.value|int if fear_greed.value) or 0 }}%;" data-fng-fill></div>
+                </div>
+            </div>
+            <div class="fng-readout">
+                <div class="fng-value {{ fear_greed.value_class }}" data-fng-value>{{ fear_greed.value or '—' }}</div>
+                <p class="fng-label" data-fng-label>{{ fear_greed.classification or '数据不可用' }}</p>
+                <p class="fng-meta" data-fng-meta>{% if fear_greed.timestamp %}更新于 {{ fear_greed.timestamp }}{% else %}暂无更新时间{% endif %}</p>
+            </div>
             <div class="fng-placeholder" data-fng-placeholder{% if fear_greed.value %} style="display:none"{% endif %}>暂无数据</div>
         </div>
-        <div class="spotlight glass-panel compact">
-            <div class="card-header">
-                <span>📈 Alpha Spotlight</span>
-                <small>点击直达 TradingView</small>
-            </div>
-            <ul class="spotlight-list" data-region="spotlight-list">
-                {% if spotlight_symbols %}
-                    {% for item in spotlight_symbols %}
-                        <li>
-                            <div>
-                                <p class="symbol">{{ item.symbol }}</p>
-                                <p class="keyword">{{ item.keyword }} · {{ item.count }}</p>
-                            </div>
-                            <a href="{{ item.url }}" target="_blank" rel="noopener" class="mini-link">开图</a>
-                        </li>
-                    {% endfor %}
-                {% else %}
-                    <li><p class="empty">暂无热点，请稍后重试。</p></li>
-                {% endif %}
-            </ul>
-        </div>
     </aside>
+</section>
+
+<section class="dashboard-section">
+    <div class="section-header">
+        <h2>⚡ 24h 市场概览</h2>
+        <small data-market-meta>
+            {% if crypto_market_board and crypto_market_board.last_updated %}
+                更新于 {{ crypto_market_board.last_updated }}
+            {% else %}
+                实时行情
+            {% endif %}
+        </small>
+    </div>
+    <div class="market-tiles-grid" data-market-list>
+        {% if crypto_market_board and crypto_market_board.coins %}
+            {% for coin in crypto_market_board.coins %}
+                {% if coin.price_change_percentage_24h is defined %}
+                    {% set pct = coin.price_change_percentage_24h %}
+                {% else %}
+                    {% set pct = coin.price_change_pct %}
+                {% endif %}
+                {% set change_value = pct if pct is not none else 0 %}
+                {% set change_text = ('+' if change_value > 0 else '') ~ ('%.2f'|format(change_value)) ~ '%' %}
+                <div class="market-tile {{ 'up' if change_value > 0 else ('down' if change_value < 0 else 'flat') }}" onclick="switchTradingView('{{ coin.symbol }}')">
+                    <div class="tile-row">
+                        <span class="tile-symbol">{{ coin.symbol }}</span>
+                        <span class="tile-change">{{ change_text }}</span>
+                    </div>
+                    <div class="tile-news">
+                        {{ coin.news_count or 0 }} · {{ '%.1f'|format(coin.news_ratio or 0) }}%
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-card glass-panel">行情数据暂不可用</div>
+        {% endif %}
+    </div>
+</section>
+
+<section class="dashboard-section">
+    <div class="section-header">
+        <h2>📈 实时行情分析</h2>
+    </div>
+    <div class="tradingview-container glass-panel">
+        <div id="tradingview_widget"></div>
+    </div>
 </section>
 
 <section class="dashboard-section">
@@ -223,6 +237,47 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://s3.tradingview.com/tv.js"></script>
+<script>
+let tradingViewWidget = null;
+const defaultSymbol = 'BINANCE:BTCUSDT';
+
+function initTradingView(symbol) {
+    const container = document.getElementById('tradingview_widget');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    tradingViewWidget = new TradingView.widget({
+        "autosize": true,
+        "symbol": symbol || defaultSymbol,
+        "interval": "60",
+        "timezone": "Asia/Shanghai",
+        "theme": "dark",
+        "style": "1",
+        "locale": "zh_CN",
+        "toolbar_bg": "#0b1220",
+        "enable_publishing": false,
+        "hide_side_toolbar": false,
+        "allow_symbol_change": true,
+        "container_id": "tradingview_widget",
+        "height": 850,
+        "studies": [
+            "MASimple@tv-basicstudies"
+        ]
+    });
+}
+
+function switchTradingView(symbol) {
+    if (!symbol) return;
+    const tradingSymbol = `BINANCE:${symbol.toUpperCase()}USDT`;
+    initTradingView(tradingSymbol);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    initTradingView(defaultSymbol);
+});
+</script>
 {% if auto_refresh %}
 <script>
 (function () {
@@ -235,6 +290,7 @@
     const cryptoLatest = document.querySelector('[data-region="crypto-latest"]');
     const hkLatest = document.querySelector('[data-region="hk-latest"]');
     const refreshIndicator = document.querySelector('[data-region="refresh-indicator"]');
+    const marketBoard = document.querySelector('[data-market-list]');
 
     if (!fngCard) {
         return;
@@ -251,6 +307,7 @@
         const labelEl = fngCard.querySelector('[data-fng-label]');
         const metaEl = fngCard.querySelector('[data-fng-meta]');
         const placeholderEl = fngCard.querySelector('[data-fng-placeholder]');
+        const fillEl = fngCard.querySelector('[data-fng-fill]');
 
         const hasValue = payload && payload.value;
         if (valueEl) {
@@ -258,6 +315,13 @@
             valueEl.className = 'fng-value ' + valueClass;
             setText(valueEl, hasValue ? payload.value : '—');
             valueEl.style.display = '';
+        }
+        if (fillEl) {
+            const valNum = hasValue ? parseInt(payload.value, 10) : 0;
+            const bounded = Math.max(0, Math.min(100, isNaN(valNum) ? 0 : valNum));
+            fillEl.style.width = bounded + '%';
+            const valueClass = hasValue && payload.value_class ? payload.value_class : 'neutral';
+            fillEl.className = 'fng-fill ' + valueClass;
         }
         if (labelEl) {
             setText(labelEl, hasValue ? (payload.classification || '数据不可用') : '数据不可用');
@@ -311,6 +375,74 @@
             li.appendChild(wrapper);
             li.appendChild(link);
             spotlightList.appendChild(li);
+        });
+    };
+
+    const formatPrice = (value) => {
+        if (typeof value !== 'number' || Number.isNaN(value)) {
+            return '—';
+        }
+        const abs = Math.abs(value);
+        const options = abs >= 100 ? { maximumFractionDigits: 0 } : { minimumFractionDigits: 2, maximumFractionDigits: 2 };
+        return '$' + value.toLocaleString('en-US', options);
+    };
+
+    const formatChange = (value) => {
+        if (typeof value !== 'number' || Number.isNaN(value)) {
+            return '—';
+        }
+        const sign = value > 0 ? '+' : '';
+        return `${sign}${value.toFixed(2)}%`;
+    };
+
+    const renderMarketBoard = (container, payload) => {
+        if (!container) {
+            return;
+        }
+        const listEl = container; 
+        // Meta update is handled outside or via separate selector if needed, 
+        // but here we assume container is the grid div.
+        // If we need to update the timestamp in section header:
+        const metaEl = document.querySelector('[data-market-meta]');
+        if (metaEl) {
+            metaEl.textContent = payload && payload.last_updated ? `更新于 ${payload.last_updated}` : '实时行情';
+        }
+        
+        listEl.innerHTML = '';
+        const coins = payload && Array.isArray(payload.coins) ? payload.coins : [];
+        if (!coins.length) {
+            const emptyCard = document.createElement('div');
+            emptyCard.className = 'empty-card glass-panel';
+            emptyCard.textContent = '行情数据暂不可用';
+            listEl.appendChild(emptyCard);
+            return;
+        }
+        coins.forEach((coin) => {
+            const tile = document.createElement('div');
+            const pct = typeof coin.price_change_percentage_24h === 'number' ? coin.price_change_percentage_24h : coin.price_change_pct;
+            const trendClass = pct > 0 ? 'up' : (pct < 0 ? 'down' : 'flat');
+            tile.className = `market-tile ${trendClass}`;
+            tile.onclick = () => switchTradingView(coin.symbol);
+            const row = document.createElement('div');
+            row.className = 'tile-row';
+            const symbolSpan = document.createElement('span');
+            symbolSpan.className = 'tile-symbol';
+            symbolSpan.textContent = coin.symbol || '';
+            const changeSpan = document.createElement('span');
+            changeSpan.className = 'tile-change';
+            changeSpan.textContent = formatChange(pct);
+            row.appendChild(symbolSpan);
+            row.appendChild(changeSpan);
+
+            const news = document.createElement('div');
+            news.className = 'tile-news';
+            const n = typeof coin.news_count === 'number' ? coin.news_count : 0;
+            const r = typeof coin.news_ratio === 'number' ? coin.news_ratio : 0;
+            news.textContent = `${n} · ${r.toFixed(1)}%`;
+
+            tile.appendChild(row);
+            tile.appendChild(news);
+            listEl.appendChild(tile);
         });
     };
 
@@ -461,7 +593,8 @@
             }
             const payload = await response.json();
             updateFearGreed(payload.fear_greed || {});
-            renderSpotlight(payload.spotlight_symbols || []);
+            // Spotlight removed per design update
+            renderMarketBoard(marketBoard, payload.crypto_market_board || {});
             renderKeywordCards(cryptoTrending, payload.crypto_trending || [], {
                 badgeLabel: 'Crypto',
                 badgeClass: '',

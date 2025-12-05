@@ -6,7 +6,7 @@ import uvicorn
 from news_search import NewsSearchEngine
 from hkstocks_search import HKStocksSearchEngine
 import logging
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 import json
 import os
 import sys
@@ -115,6 +115,7 @@ def _enhance_news_results(results: List[Dict]):
 
 
 FNG_API_ENDPOINT = "https://api.alternative.me/fng/?limit=1"
+COINGECKO_MARKET_ENDPOINT = "https://api.coingecko.com/api/v3/coins/markets"
 
 # 默认关闭实时管道，除非显式设置 ENABLE_REALTIME_PIPELINE=1
 REALTIME_PIPELINE_ENABLED = os.getenv("ENABLE_REALTIME_PIPELINE", "0") == "1"
@@ -143,6 +144,190 @@ def _get_int_from_env(env_name: str, default: int) -> int:
 
 AUTO_REFRESH_INTERVAL = _get_int_from_env("AUTO_REFRESH_INTERVAL", 60)
 AUTO_REFRESH_ENABLED = REALTIME_PIPELINE_ENABLED and AUTO_REFRESH_INTERVAL > 0
+MARKET_BOARD_CACHE_TTL = _get_int_from_env("CRYPTO_MARKET_CACHE_TTL", 180)
+MARKET_BOARD_ITEMS = _get_int_from_env("CRYPTO_MARKET_BOARD_SIZE", 8)
+
+_crypto_market_cache: Dict[str, Optional[Any]] = {
+    "payload": None,
+    "timestamp": None,
+}
+
+# 缓存币种统计结果，降低首页统计开销
+_coin_stats_cache: Dict[str, Optional[Any]] = {
+    "payload": None,
+    "timestamp": None,
+}
+
+COIN_DICT_PATH = Path(__file__).resolve().parent / "src" / "crawler" / "crpyto_news" / "coin_dict.json"
+
+def _load_coin_dict() -> Dict[str, Any]:
+    try:
+        with open(COIN_DICT_PATH, 'r', encoding='utf-8') as f:
+            return json.load(f) or {}
+    except Exception as exc:
+        logging.warning("加载 coin_dict.json 失败: %s", exc)
+        return {}
+
+def _build_lower_synonyms_map(raw_map: Dict[str, Any]) -> Dict[str, Any]:
+    lower_map: Dict[str, Any] = {}
+    for key, names in (raw_map or {}).items():
+        norm_list = []
+        for n in names or []:
+            try:
+                norm_list.append(str(n).strip())
+            except Exception:
+                continue
+        lower_map[key] = {
+            "synonyms": norm_list,
+            "synonyms_lower": [s.lower() for s in norm_list],
+        }
+    return lower_map
+
+def _compute_crypto_coin_stats() -> Dict[str, Dict[str, Any]]:
+    """统计 coin_dict 中每个币在新闻数据库中的出现次数和占比（按行计次，忽略大小写）。"""
+    try:
+        total_rows = web_analyzer.get_total_rows("crypto")
+        # 拉取两个相关列，尽量覆盖币种信息
+        currency_col = web_analyzer.fetch_column_data("crypto", web_analyzer.get_currency_column("crypto"))
+        rows: List[str] = []
+        for r in (currency_col or []):
+            if r:
+                rows.append(str(r))
+
+        coin_dict_raw = _load_coin_dict()
+        coin_dict = _build_lower_synonyms_map(coin_dict_raw)
+
+        stats: Dict[str, Dict[str, Any]] = {k: {"count": 0, "ratio": 0.0} for k in coin_dict.keys()}
+        if not rows:
+            return stats
+
+        # 为降低重复匹配，逐行处理，命中则+1（每行计一次）
+        for raw in rows:
+            text = str(raw).lower()
+            for coin_key, meta in coin_dict.items():
+                for syn in meta["synonyms_lower"]:
+                    if not syn:
+                        continue
+                    if syn in text:
+                        stats[coin_key]["count"] += 1
+                        break  # 同一 coin 本行只计一次
+
+        denom = float(total_rows or 1)
+        for coin_key, d in stats.items():
+            d["ratio"] = round((d["count"] / denom) * 100.0, 2)
+        return stats
+    except Exception as exc:
+        logging.warning("计算币种统计失败: %s", exc)
+        return {}
+
+def _get_coin_stats_cached(ttl_sec: int = 600) -> Dict[str, Dict[str, Any]]:
+    now = datetime.utcnow()
+    ts = _coin_stats_cache.get("timestamp")
+    payload = _coin_stats_cache.get("payload")
+    if payload and ts and (now - ts) < timedelta(seconds=ttl_sec):
+        return payload
+    payload = _compute_crypto_coin_stats()
+    _coin_stats_cache["payload"] = payload
+    _coin_stats_cache["timestamp"] = now
+    return payload
+
+def _match_coin_key_for_market_item(coin_name: Optional[str], coin_symbol: Optional[str]) -> Optional[str]:
+    """根据 market 行情项名称/符号，在 coin_dict 中找到对应的 coin key（忽略大小写）。"""
+    coin_dict_raw = _load_coin_dict()
+    if not coin_dict_raw:
+        return None
+    name_l = (coin_name or "").lower()
+    sym_l = (coin_symbol or "").lower()
+    for coin_key, names in coin_dict_raw.items():
+        syn_lowers = [str(x).lower() for x in (names or [])]
+        if name_l and name_l in syn_lowers:
+            return coin_key
+        if sym_l and sym_l in syn_lowers:
+            return coin_key
+    return None
+
+
+def _format_iso_timestamp(raw_value: Optional[str]) -> Optional[str]:
+    if not raw_value:
+        return None
+    try:
+        sanitized = raw_value.replace('Z', '+00:00')
+        dt_obj = datetime.fromisoformat(sanitized)
+        return dt_obj.strftime("%Y-%m-%d %H:%M")
+    except Exception:
+        return raw_value
+
+
+def fetch_crypto_market_board(limit: Optional[int] = None) -> Dict[str, Any]:
+    """Fetch 24h performance snapshot for major crypto assets."""
+    # Limit to top 20 for card display
+    limit = 20
+    now = datetime.utcnow()
+    cached_ts = _crypto_market_cache["timestamp"]
+    cached_payload = _crypto_market_cache["payload"]
+    if cached_payload and cached_ts and (now - cached_ts) < timedelta(seconds=MARKET_BOARD_CACHE_TTL):
+        return cached_payload
+
+    fallback = {
+        "coins": [],
+        "currency": "USD",
+        "last_updated": None,
+    }
+    try:
+        params = {
+            "vs_currency": "usd",
+            "order": "market_cap_desc",
+            "per_page": limit,
+            "page": 1,
+            "sparkline": "false",
+            "price_change_percentage": "24h",
+        }
+        response = requests.get(COINGECKO_MARKET_ENDPOINT, params=params, timeout=8)
+        response.raise_for_status()
+        data = response.json() or []
+        coins = []
+        for entry in data:
+            try:
+                price = entry.get("current_price")
+                pct = entry.get("price_change_percentage_24h")
+                change = entry.get("price_change_24h")
+                last_updated = entry.get("last_updated")
+                coins.append({
+                    "id": entry.get("id"),
+                    "symbol": (entry.get("symbol") or "").upper(),
+                    "name": entry.get("name"),
+                    "price": price,
+                    "price_change_pct": pct,
+                    "price_change": change,
+                    "market_cap": entry.get("market_cap"),
+                    "volume_24h": entry.get("total_volume"),
+                    "image": entry.get("image"),
+                    "last_updated": last_updated,
+                    "trend": "up" if (pct or 0) >= 0 else "down",
+                })
+            except Exception:
+                continue
+        raw_last_updated = coins[0].get("last_updated") if coins else None
+        # 计算币种新闻统计并附加到 coins
+        coin_stats = _get_coin_stats_cached(ttl_sec=max(MARKET_BOARD_CACHE_TTL, 300))
+        for c in coins:
+            key = _match_coin_key_for_market_item(c.get("name"), c.get("symbol"))
+            stat = coin_stats.get(key or "", {"count": 0, "ratio": 0.0})
+            c["news_count"] = int(stat.get("count", 0))
+            c["news_ratio"] = float(stat.get("ratio", 0.0))
+
+        payload = {
+            "coins": coins,
+            "currency": "USD",
+            "last_updated": _format_iso_timestamp(raw_last_updated),
+            "raw_last_updated": raw_last_updated,
+        }
+        _crypto_market_cache["payload"] = payload
+        _crypto_market_cache["timestamp"] = now
+        return payload
+    except Exception as exc:
+        logging.warning("获取加密货币涨跌榜失败: %s", exc)
+        return fallback
 
 
 def fetch_fear_greed_index() -> Dict[str, Optional[str]]:
@@ -165,6 +350,15 @@ def fetch_fear_greed_index() -> Dict[str, Optional[str]]:
             or fallback["classification"]
         )
         classification_str = str(classification_raw).strip() or "未知"
+        # 显示中文标签
+        cn_map = {
+            "extreme greed": "极度贪婪",
+            "greed": "贪婪",
+            "neutral": "中性",
+            "fear": "恐惧",
+            "extreme fear": "极度恐惧",
+        }
+        classification_cn = cn_map.get(classification_str.lower(), classification_str)
         class_slug = classification_str.lower().replace(' ', '-')
         allowed_classes = {"extreme-greed", "greed", "neutral", "fear", "extreme-fear"}
         value_class = class_slug if class_slug in allowed_classes else "neutral"
@@ -177,7 +371,7 @@ def fetch_fear_greed_index() -> Dict[str, Optional[str]]:
                 readable_time = None
         return {
             "value": value,
-            "classification": classification_str,
+            "classification": classification_cn,
             "value_class": value_class,
             "timestamp": readable_time,
         }
@@ -206,7 +400,7 @@ def resolve_tradingview_symbol(term: Optional[str], source: str = DEFAULT_SOURCE
     return sanitized
 
 
-def build_dashboard_snapshot() -> Dict[str, List[Dict]]:
+def build_dashboard_snapshot() -> Dict[str, Any]:
     """构建首页仪表盘所需的数据。"""
     snapshot = {
         "crypto_trending": [],
@@ -215,6 +409,7 @@ def build_dashboard_snapshot() -> Dict[str, List[Dict]]:
         "hk_latest": [],
         "spotlight_symbols": [],
         "fear_greed": fetch_fear_greed_index(),
+        "crypto_market_board": fetch_crypto_market_board(),
     }
 
     try:
@@ -707,6 +902,55 @@ async def query_keyword_similarity(request: Request):
 app.include_router(analyzer_router)
 
 # --- Original API endpoints (can be kept or refactored) ---
+
+# MVP 报告生成接口：接受前端拼接的上下文，尝试调用 Dify 工作流，若不可用则返回占位报告
+@app.post("/api/generate-report")
+async def generate_report_api(request: Request):
+    try:
+        data = await request.json()
+        context_text = str(data.get('context') or '').strip()
+        source = normalize_source(data.get('source'))
+        if not context_text:
+            return JSONResponse(status_code=400, content={"success": False, "error": "缺少上下文"})
+
+        dify_api_key = os.getenv('DIFY_API_KEY', "app-YUKyYyF2DEc4xG5Y4zUvbOaR")
+        dify_base_url = os.getenv('DIFY_BASE_URL', 'http://localhost/v1').rstrip('/')
+        user_id = os.getenv('DIFY_USER_ID', 'web-user-001')
+        debug_enabled = os.getenv('GENERATE_REPORT_DEBUG', '0') == '1'
+
+        logger.info("[generate-report] source=%s, context_len=%d", source, len(context_text))
+
+        if not dify_api_key.startswith('app-'):
+            logger.error("[generate-report] 缺少有效的 DIFY_API_KEY")
+            return JSONResponse(status_code=500, content={"success": False, "error": "服务未配置：缺少 DIFY_API_KEY"})
+
+        try:
+            url = f"{dify_base_url}/workflows/run"
+            headers = {"Authorization": f"Bearer {dify_api_key}", "Content-Type": "application/json"}
+            payload = {"inputs": {"context": context_text}, "user": user_id, "response_mode": "blocking"}
+            resp = requests.post(url, headers=headers, json=payload, timeout=60)
+            if resp.status_code != 200:
+                logger.error("[generate-report] API 调用失败 status=%s body=%s", resp.status_code, resp.text)
+                return JSONResponse(status_code=500, content={"success": False, "error": f"Dify接口调用失败({resp.status_code})"})
+            dify_data = resp.json()
+            status = dify_data.get('data', {}).get('status')
+            if status != 'succeeded':
+                err_msg = dify_data.get('data', {}).get('error') or '工作流未成功'
+                logger.error("[generate-report] 工作流未成功 status=%s error=%s", status, err_msg)
+                return JSONResponse(status_code=500, content={"success": False, "error": f"工作流未成功: {err_msg}"})
+            outputs = dify_data.get('data', {}).get('outputs') or {}
+            # 仅输出精炼报告内容
+            report_text = outputs.get('report') or outputs.get('text') or outputs.get('content')
+            if not report_text or not str(report_text).strip():
+                logger.error("[generate-report] 后端返回为空或缺少报告字段 outputs=%s", outputs)
+                return JSONResponse(status_code=500, content={"success": False, "error": "报告内容为空"})
+            return JSONResponse(content={"success": True, "report": report_text})
+        except Exception as exc:
+            logger.error("[generate-report] Dify 调用异常: %s", exc)
+            return JSONResponse(status_code=500, content={"success": False, "error": "Dify调用异常"})
+    except Exception as e:
+        logger.error(f"生成报告失败: {e}")
+        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
 
 
 if __name__ == "__main__":

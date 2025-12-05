@@ -136,3 +136,7 @@ HKSTOCKS_HEADERS = {
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(LOGS_DIR, exist_ok=True)
 
+DIFY_API_KEY = "app-YUKyYyF2DEc4xG5Y4zUvbOaR"
+
+# 2. Dify 服务的基地址
+DIFY_BASE_URL = "http://localhost/v1"

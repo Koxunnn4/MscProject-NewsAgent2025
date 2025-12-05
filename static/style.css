@@ -56,7 +56,7 @@ a:hover {
 }
 
 .app-main {
-    max-width: 1320px;
+    max-width: 1600px;
     margin: 0 auto;
     padding: 32px 42px 80px;
 }
@@ -140,6 +140,37 @@ a:hover {
     align-items: center;
     gap: 16px;
 }
+
+.search-form-mini {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+.search-input-mini {
+    background: rgba(15, 23, 42, 0.65);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    border-radius: 10px;
+    padding: 8px 12px;
+    color: var(--text);
+}
+.search-input-mini::placeholder { color: rgba(148, 163, 184, 0.65); }
+.search-select-mini {
+    background: rgba(15, 23, 42, 0.65);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    border-radius: 10px;
+    padding: 8px 10px;
+    color: var(--text);
+}
+
+.suggest-panel {
+    margin-top: 14px;
+}
+.suggest-title {
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+}
+.suggest-list { display: flex; gap: 8px; flex-wrap: wrap; }
 
 .nav-badge {
     padding: 5px 12px;
@@ -271,23 +302,24 @@ a:hover {
 
 .workflow-steps .step {
     display: flex;
-    align-items: center;
-    gap: 12px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
     padding: 16px 18px;
     background: rgba(15, 23, 42, 0.55);
     border: 1px solid var(--border);
     border-radius: 16px;
 }
 
-.workflow-steps .step span {
-    width: 26px;
-    height: 26px;
-    border-radius: 50%;
-    background: rgba(99, 179, 255, 0.22);
-    display: grid;
-    place-items: center;
-    color: var(--primary);
-    font-weight: 600;
+.workflow-steps .step h4 {
+    font-size: 1rem;
+    margin: 0;
+}
+
+.workflow-steps .step p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.9rem;
 }
 
 .hero-cards {
@@ -325,17 +357,51 @@ a:hover {
     color: var(--text-muted);
 }
 
-.fng-value.extreme-greed { color: #f6ad55; }
-.fng-value.greed { color: #fbd38d; }
-.fng-value.neutral { color: #63b3ff; }
-.fng-value.fear { color: #63b3ff; }
-.fng-value.extreme-fear { color: #f87171; }
+.fng-value.extreme-greed { color: #22c55e; }
+.fng-value.greed { color: #16a34a; }
+.fng-value.neutral { color: #f59e0b; }
+.fng-value.fear { color: #ef4444; }
+.fng-value.extreme-fear { color: #dc2626; }
 
 .fng-meta {
     margin-top: 8px;
     color: var(--text-muted);
     font-size: 0.78rem;
 }
+
+/* Fear & Greed meter styles */
+.fng-meter { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+.fng-scale { display: flex; justify-content: space-between; color: var(--text-muted); font-size: 0.8rem; }
+.fng-progress {
+    position: relative;
+    height: 16px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #ef4444 0%, #f59e0b 50%, #22c55e 100%);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    overflow: hidden;
+}
+.fng-fill {
+    height: 100%;
+    border-radius: 999px 0 0 999px;
+    background: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(1px);
+    box-shadow: 0 0 8px rgba(255,255,255,0.25) inset;
+    width: 0%;
+    transition: width 0.6s ease;
+}
+.fng-fill.extreme-fear, .fng-fill.fear { box-shadow: 0 0 8px rgba(239,68,68,0.35) inset; }
+.fng-fill.neutral { box-shadow: 0 0 8px rgba(245,158,11,0.35) inset; }
+.fng-fill.extreme-greed, .fng-fill.greed { box-shadow: 0 0 8px rgba(34,197,94,0.35) inset; }
+.fng-progress::after{
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: rgba(148,163,184,0.25);
+}
+.fng-readout { display: grid; grid-template-columns: 1fr; gap: 6px; justify-items: center; }
 
 .spotlight-list {
     list-style: none;
@@ -357,6 +423,65 @@ a:hover {
 .spotlight-list .symbol {
     font-weight: 600;
     letter-spacing: 0.02em;
+}
+
+.market-tiles-grid {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap: 6px;
+    margin-top: 12px;
+    width: 100%;
+}
+.market-tiles-grid > * { min-width: 0; }
+
+.market-card {
+    padding: 10px 8px;
+    cursor: pointer;
+    transition: var(--transition);
+    border: 2px solid transparent;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-height: 56px;
+    justify-content: center;
+}
+
+.market-card:hover {
+    transform: translateY(-1px);
+    border-color: var(--primary);
+    box-shadow: 0 6px 12px rgba(99, 179, 255, 0.18);
+}
+
+.market-card .coin-symbol {
+    font-weight: 700;
+    font-size: 0.82rem;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+
+.market-card .change {
+    font-size: 0.86rem;
+    font-weight: 600;
+}
+
+.market-card.trend-up .change {
+    color: var(--success);
+}
+
+.market-card.trend-down .change {
+    color: var(--danger);
+}
+
+.tradingview-container {
+    padding: 0;
+    overflow: hidden;
+    min-height: 900px;
+}
+
+#tradingview_widget {
+    width: 100%;
+    height: 900px;
 }
 
 .spotlight-list .keyword {
@@ -437,40 +562,39 @@ a:hover {
     gap: 16px;
 }
 
-.mini-news h3 {
-    font-size: 1rem;
-    margin: 8px 0;
-}
-
-.mini-news p {
-    color: var(--text-muted);
-    font-size: 0.9rem;
-}
-
-.mini-actions {
-    margin-top: 12px;
-    display: flex;
-    gap: 12px;
-    font-size: 0.8rem;
-}
-
-.mini-actions a:hover {
-    color: var(--primary-hover);
-}
-
-.mini-news {
+.market-tile {
+    padding: 12px 10px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: rgba(15, 23, 42, 0.55);
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    align-items: stretch;
+    gap: 8px;
+    cursor: pointer;
+    transition: var(--transition);
+    min-height: 82px;
 }
+.market-tile:hover {
+    transform: translateY(-1px);
+    border-color: var(--primary);
+}
+.tile-row { display: flex; align-items: center; justify-content: space-between; }
+.tile-symbol {
+    font-weight: 700;
+    font-size: 0.92rem;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+.tile-change {
+    font-size: 1.0rem;
+    font-weight: 600;
+}
+.tile-news { color: var(--text-muted); font-size: 0.82rem; }
+.market-tile.up .tile-change { color: var(--success); }
+.market-tile.down .tile-change { color: var(--danger); }
+.market-tile.flat .tile-change { color: var(--text-muted); }
 
-.mini-news header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 0.78rem;
-    color: var(--text-muted);
-}
 
 .mini-actions a {
     color: var(--primary);
@@ -677,14 +801,22 @@ a:hover {
     margin-bottom: 24px;
 }
 
+.report-content {
+    white-space: pre-wrap;
+    color: rgba(226, 232, 240, 0.9);
+    font-size: 0.92rem;
+    line-height: 1.5;
+}
+
 .tradingview-frame {
-    height: 340px;
+    height: 420px;
     border-radius: 12px;
     background: rgba(15, 23, 42, 0.6);
     border: 1px solid rgba(148, 163, 184, 0.16);
-    display: grid;
-    place-items: center;
+    display: block;
+    overflow: hidden;
 }
+.tradingview-frame #tradingview_widget { width: 100%; height: 100%; }
 
 .tradingview-frame .empty {
     color: var(--text-muted);
