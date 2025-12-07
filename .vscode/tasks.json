@@ -1,0 +1,14 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "append_css",
+			"type": "shell",
+			"command": "sh",
+			"args": [
+				"echo \".channels-dropdown { display: none; position: absolute; background: var(--bg-surface); border: 1px solid var(--border-color); padding: 1rem; z-index: 10; border-radius: var(--radius-md); box-shadow: var(--shadow-lg); margin-top: 0.5rem; }\" >> static/style.css"
+			],
+			"group": "build"
+		}
+	]
+}

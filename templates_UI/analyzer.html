@@ -1,161 +1,158 @@
 {% extends "base.html" %}
 
-{% block title %}关键词相似度分析{% endblock %}
+{% block title %}深度分析{% endblock %}
 
 {% block head %}
-    <link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/wordcloud2.js/1.2.2/wordcloud2.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 {% endblock %}
 
 {% block content %}
+<div class="hero-section" style="padding: 3rem 1rem; margin-bottom: 2rem;">
+    <h1 class="hero-title" style="font-size: 2.5rem;">📊 深度分析</h1>
+    <p class="hero-subtitle">实时分析关键词和币种相似度，发现新闻趋势</p>
+</div>
+
 <div class="container">
-    <!-- 页面头部 -->
-    <header class="header">
-        <h1>📊 关键词相似度分析</h1>
-        <p>实时分析关键词和币种相似度，发现新闻趋势</p>
-    </header>
+<div class="filter-panel">
+    <div class="filter-row">
+        <div class="filter-group-compact">
+            <label for="data-source">🗂️ 数据源</label>
+            <select id="data-source" class="form-select">
+                <option value="crypto" selected>Web3 频道</option>
+                <option value="hkstocks">港股新闻</option>
+            </select>
+        </div>
+        <div class="filter-group-compact">
+            <label for="time-range">📅 时间范围</label>
+            <select id="time-range" class="form-select">
+                <option value="">不限制</option>
+                <option value="5">最近5分钟</option>
+                <option value="15">最近15分钟</option>
+                <option value="30">最近30分钟</option>
+                <option value="60">最近1小时</option>
+                <option value="720">最近12小时</option>
+                <option value="1440">最近24小时</option>
+                <option value="10080">最近7天</option>
+                <option value="43200">最近30天</option>
+            </select>
+        </div>
 
-    <!-- 筛选区域 -->
-    <div class="filter-panel">
-        <div class="filter-row">
-            <div class="filter-group-compact">
-                <label for="data-source">🗂️ 数据源</label>
-                <select id="data-source">
-                    <option value="crypto" selected>Web3 频道</option>
-                    <option value="hkstocks">港股新闻</option>
-                </select>
-            </div>
-            <div class="filter-group-compact">
-                <label for="time-range">📅 时间范围</label>
-                <select id="time-range">
-                    <option value="">不限制</option>
-                    <option value="5">最近5分钟</option>
-                    <option value="15">最近15分钟</option>
-                    <option value="30">最近30分钟</option>
-                    <option value="60">最近1小时</option>
-                    <option value="720">最近12小时</option>
-                    <option value="1440">最近24小时</option>
-                    <option value="10080">最近7天</option>
-                    <option value="43200">最近30天</option>
-                </select>
-            </div>
-
-            <div class="filter-group-compact">
-                <div class="channels-collapse-wrapper">
-                    <button id="channels-toggle" class="collapse-toggle">
-                        📡 新闻源频道 <span class="toggle-icon">▼</span>
-                    </button>
-                    <div id="channels-collapse-content" class="collapse-content" style="display: none;">
-                        <div id="channels-container" class="checkbox-group"></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="filter-group-compact">
-                <button id="analyze-btn" class="btn btn-primary">🔍 分析</button>
-                <div id="loading" class="loading" style="display: none;">
-                    <span class="spinner"></span>
+        <div class="filter-group-compact">
+            <div class="channels-collapse-wrapper">
+                <button id="channels-toggle" class="btn btn-secondary" style="padding: 0.6rem 1rem; font-size: 0.9rem;">
+                    📡 新闻源频道 ▼
+                </button>
+                <div id="channels-collapse-content" class="collapse-content" style="display: none; position: absolute; background: white; border: 1px solid #e5e7eb; padding: 1rem; z-index: 10; border-radius: 0.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); margin-top: 0.5rem;">
+                    <div id="channels-container" class="checkbox-group" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem;"></div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- 分析结果区域 -->
-    <div class="results-panel" id="results-panel" style="display: none;">
-        <div class="stats-overview">
-            <div class="stat-card">
-                <h4>📰 总消息数</h4>
-                <p class="stat-value" id="total-rows">-</p>
-            </div>
-            <div class="stat-card">
-                <h4>🏷️ 关键词种类</h4>
-                <p class="stat-value" id="keyword-total">-</p>
-            </div>
-            <div class="stat-card">
-                <h4>💰 币种种类</h4>
-                <p class="stat-value" id="currency-total">-</p>
-            </div>
-        </div>
-
-        <div class="tabs">
-            <button class="tab-btn active" data-tab="keywords">关键词统计</button>
-            <button class="tab-btn" data-tab="currencies">币种统计</button>
-            <button class="tab-btn" data-tab="similarity">相似度分析</button>
-            <button class="tab-btn" data-tab="query">关键词查询</button>
-        </div>
-
-        <div class="tab-content active" id="keywords-tab">
-            <div class="table-container">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>序号</th>
-                            <th>关键词</th>
-                            <th>出现次数</th>
-                            <th>出现行数</th>
-                            <th>占比(%)</th>
-                        </tr>
-                    </thead>
-                    <tbody id="keywords-tbody"></tbody>
-                </table>
-            </div>
-            <div class="pagination" id="keywords-pagination">
-                <button id="keywords-prev" class="pagination-btn">← 上一页</button>
-                <span id="keywords-page-info" class="page-info">第 1 页</span>
-                <button id="keywords-next" class="pagination-btn">下一页 →</button>
-            </div>
-        </div>
-
-        <div class="tab-content" id="currencies-tab">
-            <div class="table-container">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>序号</th>
-                            <th>币种</th>
-                            <th>出现次数</th>
-                            <th>出现行数</th>
-                            <th>占比(%)</th>
-                        </tr>
-                    </thead>
-                    <tbody id="currencies-tbody"></tbody>
-                </table>
-            </div>
-        </div>
-
-        <div class="tab-content" id="similarity-tab">
-            <div class="table-container">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>序号</th>
-                            <th>关键词1</th>
-                            <th>出现次数</th>
-                            <th>关键词2</th>
-                            <th>出现次数</th>
-                            <th>相似度</th>
-                        </tr>
-                    </thead>
-                    <tbody id="similarity-tbody"></tbody>
-                </table>
-            </div>
-        </div>
-
-        <div class="tab-content" id="query-tab">
-            <div class="query-section">
-                <div class="query-input-group">
-                    <input type="text" id="query-keyword" placeholder="输入你感兴趣的关键词..." class="query-input">
-                    <button id="query-btn" class="btn btn-secondary">🔎 查询</button>
-                </div>
-                <div id="query-result" class="query-result" style="display: none;">
-                    <div id="query-status"></div>
-                    <div id="query-similar" class="similar-words"></div>
-                </div>
+        <div class="filter-group-compact" style="margin-left: auto;">
+            <button id="analyze-btn" class="btn btn-primary">🔍 开始分析</button>
+            <div id="loading" class="loading" style="display: none;">
+                <span class="spinner"></span>
             </div>
         </div>
     </div>
 </div>
-{% endblock %}
 
-{% block scripts %}
-    <script src="{{ url_for('static', path='/app.js') }}"></script>
+<div id="results-panel" style="display: none;">
+    <div class="stats-overview">
+        <div class="stat-card">
+            <h4>📰 总消息数</h4>
+            <p class="stat-value" id="total-rows">-</p>
+        </div>
+        <div class="stat-card">
+            <h4>🏷️ 关键词种类</h4>
+            <p class="stat-value" id="keyword-total">-</p>
+        </div>
+        <div class="stat-card">
+            <h4 id="stat-currency-title">💰 币种种类</h4>
+            <p class="stat-value" id="currency-total">-</p>
+        </div>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-btn active" data-tab="keywords">关键词统计</button>
+        <button class="tab-btn" id="tab-currencies-btn" data-tab="currencies">币种统计</button>
+        <button class="tab-btn" data-tab="trend">📈 趋势分析</button>
+        <button class="tab-btn" data-tab="query">关键词查询</button>
+        <button class="tab-btn" data-tab="visualization">☁️ 词云可视化</button>
+    </div>
+
+    <div class="tab-content active" id="keywords-tab">
+        <div style="text-align: right; margin-bottom: 1rem;">
+            <button class="btn btn-secondary" onclick="exportTableToCSV('keywords-table', 'keywords_data.csv')">📥 导出 CSV</button>
+        </div>
+        <div class="table-container">
+            <table class="data-table" id="keywords-table">
+                <thead>
+                    <tr>
+                        <th>序号</th>
+                        <th>关键词</th>
+                        <th>出现次数</th>
+                        <th>占比(%)</th>
+                    </tr>
+                </thead>
+                <tbody id="keywords-tbody"></tbody>
+            </table>
+        </div>
+        <div class="pagination" id="keywords-pagination">
+            <button id="keywords-prev" class="pagination-btn">← 上一页</button>
+            <span id="keywords-page-info" class="page-info">第 1 页</span>
+            <button id="keywords-next" class="pagination-btn">下一页 →</button>
+        </div>
+    </div>
+
+    <div class="tab-content" id="currencies-tab">
+        <div style="text-align: right; margin-bottom: 1rem;">
+            <button class="btn btn-secondary" onclick="exportTableToCSV('currencies-table', 'currencies_data.csv')">📥 导出 CSV</button>
+        </div>
+        <div class="table-container">
+            <table class="data-table" id="currencies-table">
+                <thead>
+                    <tr>
+                        <th>序号</th>
+                        <th id="table-header-currency">币种</th>
+                        <th>出现次数</th>
+                        <th>占比(%)</th>
+                    </tr>
+                </thead>
+                <tbody id="currencies-tbody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="tab-content" id="trend-tab">
+        <div class="chart-container" style="position: relative; height: 600px; width: 100%;">
+            <canvas id="trend-chart"></canvas>
+        </div>
+    </div>
+
+    <div class="tab-content" id="query-tab">
+        <div class="search-hero" style="margin: 0; padding: 2rem;">
+            <div class="search-form">
+                <input type="text" id="query-keyword" placeholder="输入你感兴趣的关键词..." class="form-control">
+                <button id="query-btn" class="btn btn-primary">🔎 查询</button>
+            </div>
+            <div id="query-result" style="display: none; margin-top: 2rem;">
+                <div id="query-status" style="margin-bottom: 1rem; font-weight: 600;"></div>
+                <div id="query-similar" class="similar-words"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-content" id="visualization-tab">
+        <div class="search-hero" style="margin: 0; padding: 2rem; text-align: center;">
+            <h3 class="section-title" style="justify-content: center;">热门关键词词云</h3>
+            <div id="word-cloud-canvas" style="width: 100%; height: 500px; margin: 0 auto;"></div>
+            <p style="color: var(--text-secondary); margin-top: 1rem;">* 词云基于当前筛选条件下的关键词频率生成</p>
+        </div>
+    </div>
+</div>
+{% endblock %}{% block scripts %}
+    <script src="{{ url_for('static', path='app.js') }}"></script>
 {% endblock %}

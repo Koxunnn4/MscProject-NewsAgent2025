@@ -36,7 +36,8 @@ class SimilarityAnalyzer:
                  channel_column: Optional[str] = "channel_id",
                  date_column: str = "date",
                  min_count: int = 5,
-                 top_n: int = 100):
+                 top_n: int = 100,
+                 stopwords: Optional[set] = None):
         """
         初始化分析器
 
@@ -47,6 +48,7 @@ class SimilarityAnalyzer:
             currency_column: 币种列名
             min_count: 最小词频阈值
             top_n: 输出前 N 对结果
+            stopwords: 停用词集合
         """
         self.db_path = db_path
         self.table = table
@@ -56,6 +58,7 @@ class SimilarityAnalyzer:
         self.date_column = date_column
         self.min_count = min_count
         self.top_n = top_n
+        self.stopwords = stopwords or set()
 
         # 延迟加载 spaCy 模型
         self.nlp = None
@@ -68,6 +71,20 @@ class SimilarityAnalyzer:
             except Exception as e:
                 logger.error(f"spaCy 模型加载失败: {e}")
                 raise
+
+    def get_latest_date(self) -> Optional[str]:
+        """获取数据库中最新的日期"""
+        conn = sqlite3.connect(self.db_path)
+        try:
+            cur = conn.cursor()
+            cur.execute(f"SELECT MAX({self.date_column}) FROM {self.table}")
+            result = cur.fetchone()
+            return result[0] if result else None
+        except Exception as e:
+            logger.error(f"获取最新日期失败: {e}")
+            return None
+        finally:
+            conn.close()
 
     def get_total_rows(self, channel_ids: List[str] = None, time_range: Tuple[str, str] = None) -> int:
         """
@@ -169,12 +186,22 @@ class SimilarityAnalyzer:
         item_counter = Counter()
         occurrence_counter = Counter()
 
+        # Prepare stopwords set for filtering
+        active_stopwords = self.stopwords
+        if self.stopwords and case_insensitive:
+            active_stopwords = {s.lower() for s in self.stopwords}
+
         for (item_str,) in rows:
             if not item_str:
                 continue
             parts = [p.strip() for p in SPLIT_RE.split(item_str) if p and p.strip()]
             if case_insensitive:
                 parts = [p.lower() for p in parts]
+            
+            # Filter stopwords
+            if active_stopwords:
+                parts = [p for p in parts if p not in active_stopwords]
+                
             item_counter.update(parts)
             occurrence_counter.update(set(parts))
 
@@ -294,6 +321,154 @@ class SimilarityAnalyzer:
         top_similar = similarities[:top_n]
 
         return exists, top_similar
+
+    def get_top_keywords_trend(self,
+                              top_keywords: List[str],
+                              channel_ids: List[str] = None,
+                              time_range: Tuple[str, str] = None,
+                              target_column: str = None) -> Dict:
+        """
+        获取 Top 关键词的趋势数据
+
+        Args:
+            top_keywords: 关键词列表
+            channel_ids: 频道 ID 列表
+            time_range: 时间范围
+            target_column: 目标列名（可选，默认为 self.keyword_column）
+
+        Returns:
+            {
+                'labels': [time1, time2, ...],
+                'datasets': [
+                    {'label': 'keyword1', 'data': [count1, count2, ...]},
+                    ...
+                ]
+            }
+        """
+        if not top_keywords:
+            return {'labels': [], 'datasets': []}
+
+        column_to_query = target_column if target_column else self.keyword_column
+
+        conn = sqlite3.connect(self.db_path)
+        try:
+            cur = conn.cursor()
+            
+            # Determine time grouping based on range
+            # Default to daily if range is large, hourly if small
+            # For simplicity, let's use a dynamic grouping or fixed buckets
+            # Here we use SQLite strftime to group by hour or day
+            
+            # Check time range duration
+            group_format = '%Y-%m-%d %H:00:00' # Default hourly
+            if time_range:
+                start, end = time_range
+                # Simple heuristic: if range > 2 days, group by day
+                # This requires parsing dates, let's stick to hourly for now or simple logic
+                pass
+
+            # Construct query to get counts per time bucket per keyword
+            # This is complex because keywords are in a comma-separated string
+            # We iterate over keywords and run count queries (not efficient but works for 30 keywords)
+            # OR we fetch all data and aggregate in Python (better for flexibility)
+
+            where_clauses = []
+            params = []
+            if channel_ids and self.channel_column:
+                placeholders = ",".join("?" for _ in channel_ids)
+                where_clauses.append(f"{self.channel_column} IN ({placeholders})")
+                params.extend(channel_ids)
+            if time_range:
+                where_clauses.append(f"{self.date_column} BETWEEN ? AND ?")
+                params.extend(time_range)
+            
+            where_sql = " WHERE " + " AND ".join(where_clauses) if where_clauses else ""
+            
+            sql = f"SELECT {self.date_column}, {column_to_query} FROM {self.table} {where_sql} ORDER BY {self.date_column}"
+            cur.execute(sql, params)
+            rows = cur.fetchall()
+            
+        finally:
+            conn.close()
+
+        # Aggregate in Python
+        # 1. Create time buckets
+        # 2. Count keywords in each bucket
+        
+        from datetime import datetime
+        
+        # Helper to parse date
+        def parse_date(d_str):
+            try:
+                return datetime.fromisoformat(d_str.replace('Z', '+00:00'))
+            except:
+                try:
+                    return datetime.strptime(d_str, '%Y-%m-%d %H:%M:%S')
+                except:
+                    return None
+
+        if not rows:
+            return {'labels': [], 'datasets': []}
+
+        # Determine bucket size
+        dates = [parse_date(r[0]) for r in rows if r[0]]
+        dates = [d for d in dates if d]
+        if not dates:
+            return {'labels': [], 'datasets': []}
+            
+        min_date, max_date = min(dates), max(dates)
+        duration = (max_date - min_date).total_seconds()
+        
+        # Strategy:
+        # < 24 hours: Hourly buckets
+        # > 24 hours: Daily buckets
+        
+        is_hourly = duration < 86400 * 2
+        
+        buckets = {} # time_label -> {keyword: count}
+        
+        for date_str, keywords_str in rows:
+            if not date_str or not keywords_str: continue
+            dt = parse_date(date_str)
+            if not dt: continue
+            
+            if is_hourly:
+                label = dt.strftime('%Y-%m-%d %H:00')
+            else:
+                label = dt.strftime('%Y-%m-%d')
+                
+            if label not in buckets:
+                buckets[label] = Counter()
+            
+            # Split keywords
+            parts = [p.strip() for p in SPLIT_RE.split(keywords_str) if p and p.strip()]
+            # Normalize parts to lowercase to match top_keywords (which are lowercase)
+            parts = [p.lower() for p in parts]
+            # Filter only top keywords
+            relevant_parts = [p for p in parts if p in top_keywords]
+            # Also handle case-insensitive matching if needed, but top_keywords should match extraction logic
+            # Assuming top_keywords are already normalized or we normalize here
+            
+            buckets[label].update(relevant_parts)
+
+        # Sort labels
+        sorted_labels = sorted(buckets.keys())
+        
+        datasets = []
+        for kw in top_keywords:
+            data_points = []
+            for label in sorted_labels:
+                data_points.append(buckets[label][kw])
+            
+            datasets.append({
+                'label': kw,
+                'data': data_points
+            })
+            
+        return {
+            'labels': sorted_labels,
+            'datasets': datasets
+        }
 
 
 if __name__ == "__main__":

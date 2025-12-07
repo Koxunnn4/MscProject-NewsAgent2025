@@ -2,52 +2,28 @@
 
 {% block title %}{{ source_label }} · {{ keyword_heading or '新闻搜索' }}{% endblock %}
 
-{% block head %}
-<style>
-    .search-hero { background: white; border-radius: 16px; padding: 32px; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08); margin-bottom: 24px; }
-    .search-form { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
-    .search-input { flex: 1; min-width: 220px; padding: 12px 16px; border-radius: 10px; border: 1px solid #CBD5F5; font-size: 1rem; }
-    .search-select { padding: 12px 16px; border-radius: 10px; border: 1px solid #CBD5F5; font-size: 0.95rem; background: #fff; }
-    .search-button { padding: 12px 24px; border-radius: 10px; border: none; background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; font-weight: 600; cursor: pointer; }
-    .search-button:hover { opacity: 0.95; }
-    .meta-line { color: #4a5568; margin-top: 12px; }
-    .keyword-cloud { display: flex; flex-wrap: wrap; gap: 10px; margin: 24px 0; }
-    .keyword-chip { padding: 6px 14px; border-radius: 999px; font-size: 0.9rem; text-decoration: none; border: 1px solid transparent; transition: transform 0.2s; }
-    .keyword-chip:hover { transform: translateY(-2px); }
-    .page-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 24px; }
-    .news-card { background: white; border-radius: 16px; padding: 20px; margin-bottom: 20px; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08); }
-    .news-card__meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 0.85rem; color: #64748b; margin-bottom: 8px; }
-    .badge { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
-    .badge-source { background: rgba(102, 126, 234, 0.15); color: #4c51bf; }
-    .badge-muted { border: 1px solid #e2e8f0; color: #4a5568; }
-    .news-card h3 { margin: 8px 0 12px; font-size: 1.25rem; color: #1a202c; }
-    .news-card p { margin: 0 0 12px; color: #2d3748; line-height: 1.6; }
-    .news-card__footer { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
-    .keyword-tags { display: flex; flex-wrap: wrap; gap: 8px; }
-    .keyword-tag { padding: 4px 8px; background: #edf2f7; border-radius: 6px; font-size: 0.8rem; }
-    .trend-card { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08); margin-bottom: 24px; }
-    .empty-state { background: white; border-radius: 16px; padding: 40px; text-align: center; color: #718096; }
-    @media (max-width: 1024px) { .page-layout { grid-template-columns: 1fr; } }
-</style>
-{% endblock %}
-
 {% block content %}
+<div class="container" style="padding-top: 2rem; padding-bottom: 2rem;">
 <section class="search-hero">
-    <h1 style="margin-bottom: 16px;">{{ source_label }} · {{ keyword_heading or '新闻搜索' }}</h1>
+    <h1>{{ source_label }} · {{ keyword_heading or '新闻搜索' }}</h1>
     <form class="search-form" method="get" action="/search">
-        <input type="text" class="search-input" name="keyword" value="{{ search_value or '' }}" placeholder="输入想追踪的关键词">
-        <select name="source" class="search-select">
+        <input type="text" class="form-control" name="keyword" value="{{ search_value or '' }}" placeholder="输入想追踪的关键词">
+        <select name="source" class="form-select">
             {% for opt in available_sources %}
                 <option value="{{ opt.key }}" {% if opt.key == source %}selected{% endif %}>{{ opt.label }}</option>
             {% endfor %}
         </select>
-        <button class="search-button" type="submit">立即搜索</button>
+        <button class="btn btn-primary" type="submit">立即搜索</button>
     </form>
-    <p class="meta-line">{{ result_summary or ('共 ' ~ total_results ~ ' 条结果') }} · 数据源：{{ source_label }}</p>
+    <div class="search-meta">
+        <span>{{ result_summary or ('共 ' ~ total_results ~ ' 条结果') }}</span>
+        <span>·</span>
+        <span>数据源：{{ source_label }}</span>
+    </div>
 </section>
 
-<section>
-    <h2 style="font-size: 1rem; color: #4a5568; margin-bottom: 8px;">热门关键词</h2>
+<section class="keyword-section">
+    <h2 class="section-title">热门关键词</h2>
     <div class="keyword-cloud">
         {% if top_keywords_counts %}
             {% for item in top_keywords_counts %}
@@ -71,28 +47,30 @@
         {% if results %}
             {% for news in results %}
                 <article class="news-card">
-                    <div class="news-card__meta">
-                        <span class="badge badge-source">{{ news.source_badge }}</span>
-                        <span class="badge badge-muted">{{ news.source }}</span>
+                    <div class="news-meta">
+                        <span class="badge badge-primary">{{ news.source_badge }}</span>
+                        <span class="badge badge-outline">{{ news.source }}</span>
                         <span>{{ news.date }}</span>
                         {% if news.similarity_score %}
-                            <span style="color:#805ad5; font-weight:600;">相关度 {{ '{:.2f}'.format(news.similarity_score) }}</span>
+                            <span style="color: var(--primary-color); font-weight:600;">相关度 {{ '{:.2f}'.format(news.similarity_score) }}</span>
                         {% endif %}
                     </div>
-                    <h3>{{ news.title }}</h3>
+                    <h3 class="news-title">{{ news.title }}</h3>
                     {% if news.url %}
-                        <p style="margin-bottom: 8px;"><a href="{{ news.url }}" target="_blank">查看原文链接 ↗</a></p>
+                        <p style="margin-bottom: 0.5rem;"><a href="{{ news.url }}" target="_blank" class="read-more">查看原文链接 ↗</a></p>
                     {% endif %}
-                    <p><strong>摘要：</strong>{{ news.summary or '暂无摘要' }}</p>
-                    <details style="margin-top: 8px;">
-                        <summary style="cursor:pointer; color:#4a5568;">展开原文</summary>
-                        <p style="white-space: pre-wrap; margin-top: 8px;">{{ news.original_text }}</p>
+                    <div class="news-summary">
+                        <strong>摘要：</strong>{{ news.summary or '暂无摘要' }}
+                    </div>
+                    <details>
+                        <summary>展开原文</summary>
+                        <p>{{ news.original_text }}</p>
                     </details>
                     {% if news.keyword_list %}
-                        <div class="news-card__footer">
-                            <div class="keyword-tags">
+                        <div class="news-footer">
+                            <div class="tag-list">
                                 {% for kw in news.keyword_list %}
-                                    <span class="keyword-tag">{{ kw }}</span>
+                                    <span class="tag">{{ kw }}</span>
                                 {% endfor %}
                             </div>
                         </div>
@@ -101,16 +79,18 @@
             {% endfor %}
         {% else %}
             <div class="empty-state">
+                <span class="empty-icon">🔍</span>
                 <p>没有找到相关新闻，可以尝试更换关键词或切换数据源。</p>
             </div>
         {% endif %}
     </div>
     <aside>
-        <div class="trend-card">
-            <h3 style="margin-bottom: 12px;">关键词日趋势</h3>
+        <div class="news-card">
+            <h3 class="section-title">关键词日趋势</h3>
             <canvas id="trendChart" height="220"></canvas>
         </div>
     </aside>
+</div>
 </div>
 {% endblock %}
 
@@ -128,10 +108,10 @@
                 datasets: [{
                     label: '每日热度',
                     data: counts,
-                    borderColor: '#667eea',
-                    backgroundColor: 'rgba(102, 126, 234, 0.15)',
+                    borderColor: '#2563EB',
+                    backgroundColor: 'rgba(37, 99, 235, 0.1)',
                     tension: 0.35,
-                    pointRadius: 2,
+                    pointRadius: 3,
                     borderWidth: 2
                 }]
             },

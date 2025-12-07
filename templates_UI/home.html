@@ -4,26 +4,251 @@
 
 {% block head %}
 <style>
-    .welcome-container { text-align: center; padding: 80px 20px; }
-    .welcome-container h1 { font-size: 3rem; margin-bottom: 16px; }
-    .welcome-container p { font-size: 1.25rem; color: #4a5568; margin-bottom: 32px; }
-    .cta-buttons { display: flex; justify-content: center; gap: 24px; }
-    .cta-button { text-decoration: none; padding: 12px 24px; border-radius: 8px; font-size: 1.1rem; font-weight: 600; transition: all 0.3s; }
-    .cta-primary { background-color: #2b6cb0; color: white; }
-    .cta-primary:hover { background-color: #2c5282; transform: translateY(-2px); }
-    .cta-secondary { background-color: #E2E8F0; color: #2D3748; }
-    .cta-secondary:hover { background-color: #CBD5E0; transform: translateY(-2px); }
+    .hero-section {
+        position: relative;
+        background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%); /* Dark sci-fi bg */
+        overflow: hidden;
+        color: white;
+        min-height: 600px; /* Ensure enough space for the effect */
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+    .hero-title {
+        color: white;
+        position: relative;
+        z-index: 10;
+        text-shadow: 0 4px 8px rgba(0,0,0,0.5);
+        margin-bottom: 1.5rem;
+    }
+    .hero-title span {
+        background: linear-gradient(135deg, #38bdf8, #818cf8);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-shadow: 0 0 20px rgba(56, 189, 248, 0.3);
+    }
+    .hero-subtitle {
+        color: #94a3b8;
+        position: relative;
+        z-index: 10;
+        max-width: 600px;
+        margin: 0 auto 3rem;
+        font-size: 1.25rem;
+    }
+    #particle-canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1;
+        pointer-events: none;
+    }
+    .hero-actions {
+        position: relative;
+        z-index: 10;
+        display: flex;
+        gap: 1.5rem;
+    }
+    .btn-secondary-glass {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: white;
+    }
+    .btn-secondary-glass:hover {
+        background: rgba(255, 255, 255, 0.2);
+        transform: translateY(-2px);
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="welcome-container">
-    <h1>欢迎使用 Web3 & HK Stocks 新闻分析平台</h1>
-    <p>一站式聚合 Web3 与港股市场资讯，支持关键词搜索、摘要与趋势分析。</p>
-    <div class="cta-buttons">
-    <a href="/search" class="cta-button cta-primary">开始搜索新闻</a>
-    <!-- <a href="/search?source=hkstocks" class="cta-button cta-secondary">切换到港股数据源</a> -->
-    <a href="/analyzer" class="cta-button cta-secondary">进行关键词分析</a>
+<div class="hero-section">
+    <canvas id="particle-canvas"></canvas>
+    <h1 class="hero-title">Web3 & HK Stocks<br><span>新闻分析平台</span></h1>
+    <p class="hero-subtitle">一站式聚合 Web3 与港股市场资讯，支持关键词搜索、智能摘要与深度趋势分析。</p>
+    <div class="hero-actions">
+        <a href="/search" class="btn btn-primary">开始搜索新闻</a>
+        <a href="/analyzer" class="btn btn-secondary btn-secondary-glass">进行关键词分析</a>
     </div>
 </div>
+
+<script>
+(function() {
+    const canvas = document.getElementById('particle-canvas');
+    const ctx = canvas.getContext('2d');
+    
+    let width, height;
+    let particles = [];
+    let targetPoints = [];
+    
+    // Configuration
+    const PARTICLE_COUNT = 800; // Total particles
+    const DOLLAR_SIZE_RATIO = 0.6; // Size of $ relative to screen height
+    const MOUSE_RADIUS = 100;
+    
+    let mouse = { x: -9999, y: -9999 };
+    
+    // Resize handler
+    function resize() {
+        width = canvas.width = canvas.offsetWidth;
+        height = canvas.height = canvas.offsetHeight;
+        initDollarPoints();
+    }
+    
+    window.addEventListener('resize', resize);
+    
+    // Mouse interaction
+    document.addEventListener('mousemove', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        mouse.x = e.clientX - rect.left;
+        mouse.y = e.clientY - rect.top;
+    });
+
+    // Particle Class
+    class Particle {
+        constructor() {
+            this.x = Math.random() * width;
+            this.y = Math.random() * height;
+            this.vx = (Math.random() - 0.5) * 2;
+            this.vy = (Math.random() - 0.5) * 2;
+            this.size = Math.random() * 2 + 1;
+            this.color = `rgba(${56 + Math.random()*100}, ${189 + Math.random()*50}, 248, ${0.3 + Math.random()*0.5})`; // Cyan-ish
+            this.targetIndex = -1; // Index in targetPoints
+        }
+        
+        update(time) {
+            // Breathing effect factor
+            const breathScale = 1 + 0.15 * Math.sin(time * 0.002);
+            
+            let tx, ty;
+            
+            if (this.targetIndex !== -1 && this.targetIndex < targetPoints.length) {
+                // Move towards target point
+                const p = targetPoints[this.targetIndex];
+                
+                // Apply breathing scale centered at screen
+                const centerX = width / 2;
+                const centerY = height / 2;
+                
+                tx = centerX + (p.x - centerX) * breathScale;
+                ty = centerY + (p.y - centerY) * breathScale;
+                
+                // Attraction force
+                const dx = tx - this.x;
+                const dy = ty - this.y;
+                
+                this.vx += dx * 0.005; // Spring constant
+                this.vy += dy * 0.005;
+                
+                // Damping
+                this.vx *= 0.92;
+                this.vy *= 0.92;
+            } else {
+                // Float randomly if no target
+                if (this.x < 0 || this.x > width) this.vx *= -1;
+                if (this.y < 0 || this.y > height) this.vy *= -1;
+            }
+            
+            // Mouse repulsion
+            const dx = this.x - mouse.x;
+            const dy = this.y - mouse.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            
+            if (dist < MOUSE_RADIUS) {
+                const force = (MOUSE_RADIUS - dist) / MOUSE_RADIUS;
+                const angle = Math.atan2(dy, dx);
+                this.vx += Math.cos(angle) * force * 2;
+                this.vy += Math.sin(angle) * force * 2;
+            }
+            
+            this.x += this.vx;
+            this.y += this.vy;
+        }
+        
+        draw() {
+            ctx.fillStyle = this.color;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+    
+    // Initialize Dollar Sign Points
+    function initDollarPoints() {
+        targetPoints = [];
+        
+        // Create an off-screen canvas to render text
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCanvas.width = width;
+        tempCanvas.height = height;
+        
+        const fontSize = Math.min(width, height) * DOLLAR_SIZE_RATIO;
+        tempCtx.font = `bold ${fontSize}px Arial, sans-serif`;
+        tempCtx.textAlign = 'center';
+        tempCtx.textBaseline = 'middle';
+        tempCtx.fillStyle = 'white';
+        tempCtx.fillText('$', width / 2, height / 2);
+        
+        // Scan pixels
+        const imageData = tempCtx.getImageData(0, 0, width, height);
+        const data = imageData.data;
+        const step = 8; // Skip pixels for performance and sparsity
+        
+        for (let y = 0; y < height; y += step) {
+            for (let x = 0; x < width; x += step) {
+                const index = (y * width + x) * 4;
+                if (data[index + 3] > 128) { // If alpha > 128
+                    targetPoints.push({x, y});
+                }
+            }
+        }
+        
+        // Shuffle targets to distribute particles randomly
+        targetPoints.sort(() => Math.random() - 0.5);
+        
+        // Assign targets to particles
+        particles.forEach((p, i) => {
+            p.targetIndex = i < targetPoints.length ? i : -1;
+        });
+    }
+    
+    // Main Init
+    function init() {
+        resize();
+        
+        // Create particles
+        for (let i = 0; i < PARTICLE_COUNT; i++) {
+            particles.push(new Particle());
+        }
+        
+        // Assign targets
+        particles.forEach((p, i) => {
+            p.targetIndex = i < targetPoints.length ? i : -1;
+        });
+        
+        animate();
+    }
+    
+    function animate(time = 0) {
+        ctx.clearRect(0, 0, width, height);
+        
+        // Optional: Draw faint connection lines or glow
+        
+        particles.forEach(p => {
+            p.update(time);
+            p.draw();
+        });
+        
+        requestAnimationFrame(animate);
+    }
+    
+    // Start
+    init();
+})();
+</script>
 {% endblock %}

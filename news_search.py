@@ -276,7 +276,22 @@ class NewsSearchEngine:
             logger.error(f"获取带计数的关键词失败: {e}")
             return []
 
-    def generate_summary(self, text: str) -> str:
+    def generate_summary(self, text: str, news_id: str = None) -> str:
+        # 1. 尝试从数据库获取摘要
+        if news_id:
+            try:
+                conn = sqlite3.connect(self.db_path)
+                cursor = conn.cursor()
+                cursor.execute("SELECT summary FROM news_summaries WHERE news_id = ?", (news_id,))
+                row = cursor.fetchone()
+                conn.close()
+                if row and row[0]:
+                    return row[0]
+            except Exception as e:
+                # 数据库查询失败不应阻断生成流程，仅记录警告
+                logger.warning(f"从数据库获取摘要失败 (news_id={news_id}): {e}")
+
+        # 2. 如果数据库没有，则使用模型生成
         try:
             if not text:
                 return ""

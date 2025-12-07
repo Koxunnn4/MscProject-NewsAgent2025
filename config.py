@@ -10,7 +10,8 @@ LOGS_DIR = os.path.join(PROJECT_ROOT, 'logs')
 
 # 数据库配置
 DATABASE_PATH = os.path.join(DATA_DIR, 'news_analysis.db')  # 主数据库
-HISTORY_DB_PATH = os.path.join(PROJECT_ROOT, 'testdb_history.db')  # 历史数据
+HISTORY_DB_PATH = os.path.join(PROJECT_ROOT, 'testdb_history.db')  # 港股数据
+CRYPTO_DB_PATH = os.path.join(PROJECT_ROOT, 'testdb_cryptonews.db')  # Crypto新闻数据
 
 # 关键词提取配置
 KEYBERT_MODEL = "paraphrase-multilingual-MiniLM-L12-v2"

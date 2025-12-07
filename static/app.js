@@ -11,8 +11,31 @@ document.addEventListener('DOMContentLoaded', () => {
         setupEventListeners();
         setupChannelToggle();
         loadChannels();
+        
+        // 初始化 UI 标签
+        const sourceSelect = document.getElementById('data-source');
+        if (sourceSelect) {
+            updateUILabels(sourceSelect.value);
+        }
     }
 });
+
+// ===== UI 更新 =====
+function updateUILabels(source) {
+    const tabBtn = document.getElementById('tab-currencies-btn');
+    const statTitle = document.getElementById('stat-currency-title');
+    const tableHeader = document.getElementById('table-header-currency');
+
+    if (source === 'hkstocks') {
+        if (tabBtn) tabBtn.textContent = '行业统计';
+        if (statTitle) statTitle.textContent = '🏭 行业种类';
+        if (tableHeader) tableHeader.textContent = '行业';
+    } else {
+        if (tabBtn) tabBtn.textContent = '币种统计';
+        if (statTitle) statTitle.textContent = '💰 币种种类';
+        if (tableHeader) tableHeader.textContent = '币种';
+    }
+}
 
 // ===== 事件监听 =====
 function setupEventListeners() {
@@ -23,6 +46,7 @@ function setupEventListeners() {
     if (sourceSelect) {
         sourceSelect.addEventListener('change', () => {
             loadChannels();
+            updateUILabels(sourceSelect.value);
         });
     }
 
@@ -209,34 +233,14 @@ function displayResults(data) {
             <td>${index + 1}</td>
             <td><strong>${escapeHtml(item.word)}</strong></td>
             <td>${item.count}</td>
-            <td>${item.occur_count}</td>
             <td>${item.ratio.toFixed(2)}%</td>
         `;
         document.getElementById('currencies-tbody').appendChild(row);
     });
 
-    // 清空相似度表格
-    document.getElementById('similarity-tbody').innerHTML = '';
-
-    // 填充相似度表格
-    if (data.similarity_results && data.similarity_results.length > 0) {
-        data.similarity_results.forEach((item, index) => {
-            const row = document.createElement('tr');
-            const similarity = (item.similarity * 100).toFixed(2);
-            row.innerHTML = `
-                <td>${index + 1}</td>
-                <td>${escapeHtml(item.word1)}</td>
-                <td>${item.count1}</td>
-                <td>${escapeHtml(item.word2)}</td>
-                <td>${item.count2}</td>
-                <td><span class="similarity-score">${similarity}%</span></td>
-            `;
-            document.getElementById('similarity-tbody').appendChild(row);
-        });
-    } else {
-        const row = document.createElement('tr');
-        row.innerHTML = '<td colspan="6" style="text-align: center; color: #718096;">暂无相似度数据（可能是关键词数不足或模型加载失败）</td>';
-        document.getElementById('similarity-tbody').appendChild(row);
+    // 渲染趋势图
+    if (data.trend_data) {
+        renderTrendChart(data.trend_data);
     }
 
     // 显示关键词标签页
@@ -269,7 +273,6 @@ function displayKeywordPage() {
             <td>${i + 1}</td>
             <td><strong>${escapeHtml(item.word)}</strong></td>
             <td>${item.count}</td>
-            <td>${item.occur_count}</td>
             <td>${item.ratio.toFixed(2)}%</td>
         `;
         tbody.appendChild(row);
@@ -329,6 +332,142 @@ function switchTabToElement(tabName) {
     if (btnElement) {
         btnElement.classList.add('active');
     }
+
+    // 如果切换到可视化标签页，且有数据，则渲染词云
+    if (tabName === 'visualization' && currentAnalysisData) {
+        // Small delay to ensure DOM is updated and container has size
+        setTimeout(() => {
+            renderWordCloud(currentAnalysisData);
+        }, 50);
+    }
+}
+
+// ===== 趋势图渲染 =====
+let trendChart = null;
+
+function renderTrendChart(trendData) {
+    const ctx = document.getElementById('trend-chart');
+    if (!ctx) return;
+
+    if (trendChart) {
+        trendChart.destroy();
+    }
+
+    // trendData structure: { labels: [...], datasets: [{label: 'keyword', data: [...]}, ...] }
+    
+    // Generate colors for datasets - Optimized for distinction
+    const colors = [
+        '#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#00FFFF', '#FF00FF', // Basic brights
+        '#800000', '#008000', '#000080', '#808000', '#008080', '#800080', // Darker versions
+        '#FF4500', '#32CD32', '#1E90FF', '#FFD700', '#00CED1', '#FF1493', // Distinct shades
+        '#8B4513', '#2E8B57', '#4682B4', '#DAA520', '#20B2AA', '#C71585', // Earthy/Muted
+        '#DC143C', '#7FFF00', '#4169E1', '#F0E68C', '#AFEEEE', '#DB7093'  // Others
+    ];
+
+    // Helper to convert hex to rgba
+    function hexToRgba(hex, alpha) {
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+    const datasets = trendData.datasets.map((ds, index) => {
+        const color = colors[index % colors.length];
+        return {
+            label: ds.label,
+            data: ds.data,
+            borderColor: hexToRgba(color, 0.6), // Increased default opacity (was 0.3)
+            backgroundColor: hexToRgba(color, 0.6),
+            borderWidth: 2, // Increased default width (was 1)
+            tension: 0.4,
+            pointRadius: 0, 
+            pointHoverRadius: 6, // Show a dot when hovering for better feedback
+            pointHitRadius: 60, // Significantly increased hit area for easier selection
+            fill: false,
+            originalColor: color 
+        };
+    });
+
+    trendChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: trendData.labels,
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'nearest',
+                axis: 'xy',
+                intersect: false
+            },
+            plugins: {
+                legend: {
+                    display: false 
+                },
+                tooltip: {
+                    enabled: true,
+                    mode: 'nearest',
+                    intersect: false,
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + context.parsed.y;
+                        }
+                    },
+                    filter: function(tooltipItem) {
+                        // Only show tooltip for the highlighted dataset
+                        // We check if borderWidth is > 2 (our highlight condition)
+                        return tooltipItem.dataset.borderWidth > 2;
+                    }
+                },
+                title: {
+                    display: true,
+                    text: 'Top 30 关键词趋势 (鼠标悬停高亮显示)'
+                }
+            },
+            onHover: function(e, activeElements, chart) {
+                let hasActive = activeElements.length > 0;
+                
+                chart.data.datasets.forEach((dataset, i) => {
+                    if (hasActive && activeElements[0].datasetIndex === i) {
+                        // Highlight active
+                        dataset.borderColor = hexToRgba(dataset.originalColor, 1.0);
+                        dataset.borderWidth = 4; // Thicker highlight
+                        dataset.order = -1; // Bring to front
+                    } else {
+                        // Dim others - Increased opacity (was 0.1/0.3)
+                        dataset.borderColor = hexToRgba(dataset.originalColor, hasActive ? 0.2 : 0.6);
+                        dataset.borderWidth = 1; // Thinner when not selected
+                        dataset.order = 0;
+                    }
+                });
+                
+                chart.update('none'); 
+            },
+            scales: {
+                x: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: '时间'
+                    },
+                    ticks: {
+                        maxTicksLimit: 10
+                    }
+                },
+                y: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: '频次'
+                    },
+                    beginAtZero: true
+                }
+            }
+        }
+    });
 }
 
 // ===== 执行关键词查询 =====
@@ -430,6 +569,84 @@ function escapeHtml(text) {
         "'": '&#039;'
     };
     return text.replace(/[&<>"']/g, m => map[m]);
+}
+
+// ===== 导出 CSV 功能 =====
+function exportTableToCSV(tableId, filename) {
+    const table = document.getElementById(tableId);
+    if (!table) return;
+
+    const rows = table.querySelectorAll('tr');
+    const csv = [];
+
+    for (let i = 0; i < rows.length; i++) {
+        const row = [], cols = rows[i].querySelectorAll('td, th');
+        for (let j = 0; j < cols.length; j++) {
+            // Clean text content: remove newlines and escape quotes
+            let data = cols[j].innerText.replace(/(\r\n|\n|\r)/gm, '').replace(/(\s\s)/gm, ' ');
+            data = data.replace(/"/g, '""');
+            row.push('"' + data + '"');
+        }
+        csv.push(row.join(','));
+    }
+
+    const csvFile = new Blob([csv.join('\n')], { type: 'text/csv' });
+    const downloadLink = document.createElement('a');
+    downloadLink.download = filename;
+    downloadLink.href = window.URL.createObjectURL(csvFile);
+    downloadLink.style.display = 'none';
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+}
+
+// ===== 词云渲染 =====
+function renderWordCloud(data) {
+    const canvas = document.getElementById('word-cloud-canvas');
+    // Support both keyword_stats (from backend) and keywords (legacy/generic)
+    const keywords = data.keyword_stats || data.keywords;
+    
+    if (!canvas || !data || !keywords) return;
+
+    // Prepare data for wordcloud2.js: [[word, weight], ...]
+    // Use count as weight. Normalize if needed, but library handles it well.
+    // Take top 100 keywords for clarity
+    const list = keywords.slice(0, 100).map(item => [item.word, item.count]);
+
+    if (list.length === 0) {
+        canvas.innerHTML = '<p style="text-align:center; padding-top: 100px; color: #999;">暂无数据生成词云</p>';
+        return;
+    }
+
+    // Clear previous content if it was text
+    canvas.innerHTML = '';
+    
+    // Ensure canvas has dimensions
+    if (canvas.offsetWidth === 0 || canvas.offsetHeight === 0) {
+        // If hidden, we can't render properly. 
+        // It will be rendered when tab switches.
+        return;
+    }
+
+    WordCloud(canvas, {
+        list: list,
+        gridSize: 16,
+        weightFactor: function (size) {
+            // Dynamic scaling based on max count
+            const max = list[0][1];
+            return (size / max) * 60 + 10; // Min 10px, Max 70px
+        },
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        color: function (word, weight) {
+            // Random colors from our palette
+            const colors = ['#2563EB', '#7C3AED', '#10B981', '#F59E0B', '#EF4444', '#6B7280'];
+            return colors[Math.floor(Math.random() * colors.length)];
+        },
+        rotateRatio: 0.5,
+        rotationSteps: 2,
+        backgroundColor: '#ffffff',
+        drawOutOfBound: false
+    });
 }
 
 // ===== 添加样式表中缺少的相似度条样式 =====

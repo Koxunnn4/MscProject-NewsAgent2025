@@ -13,12 +13,12 @@ import sys
 from collections import Counter
 import re
 from datetime import datetime, timedelta
-from config import HISTORY_DB_PATH
+from config import HISTORY_DB_PATH, CRYPTO_DB_PATH
 
 # --- Start of web_analyzer integration ---
 
 # 添加项目根目录到路径，以便导入分析器模块
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+PROJECT_ROOT = os.path.abspath(os.path.dirname(__file__))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
@@ -41,11 +41,11 @@ CHANNEL_MAP = {
 }
 
 SOURCE_OPTIONS = [
-    {"key": "crypto", "label": "Web3 新闻"},
-    {"key": "hkstocks", "label": "港股新闻"}
+    {"key": "hkstocks", "label": "港股新闻"},
+    {"key": "crypto", "label": "Web3 新闻"}
 ]
 SOURCE_LABEL_MAP = {item["key"]: item["label"] for item in SOURCE_OPTIONS}
-DEFAULT_SOURCE = "crypto"
+DEFAULT_SOURCE = "hkstocks"
 SOURCE_BADGES = {"crypto": "Web3", "hkstocks": "港股"}
 
 
@@ -65,7 +65,7 @@ def get_search_engine(source_key: str) -> NewsSearchEngine:
         if key == "hkstocks":
             _search_engine_cache[key] = HKStocksSearchEngine(db_path=HISTORY_DB_PATH)
         else:
-            _search_engine_cache[key] = NewsSearchEngine(db_path=HISTORY_DB_PATH)
+            _search_engine_cache[key] = NewsSearchEngine(db_path=CRYPTO_DB_PATH)
     return _search_engine_cache[key]
 
 
@@ -92,26 +92,42 @@ class WebSimilarityAnalyzer:
         else:
             logging.warning("SimilarityAnalyzer 模块不可用，关键词分析接口将被禁用")
 
+    def _load_stopwords(self, path: str) -> set:
+        stopwords = set()
+        try:
+            if os.path.exists(path):
+                with open(path, 'r', encoding='utf-8') as f:
+                    stopwords = set(line.strip() for line in f if line.strip())
+                logging.info(f"Loaded {len(stopwords)} stopwords from {path}")
+            else:
+                logging.warning(f"Stopwords file not found at {path}")
+        except Exception as e:
+            logging.error(f"Error loading stopwords from {path}: {e}")
+        return stopwords
+
     def _init_sources(self):
         configs: Dict[str, Dict] = {}
         try:
             configs["crypto"] = {
                 "label": SOURCE_LABEL_MAP["crypto"],
                 "analyzer": SimilarityAnalyzer(
-                    db_path=r"src/crawler/crpyto_news/stream.db",
+                    db_path=CRYPTO_DB_PATH,
                     table="messages",
                     keyword_column="keywords",
-                    currency_column="industry",
+                    currency_column="currency",
                     channel_column="channel_id",
                     date_column="date",
                     min_count=5,
                     top_n=100
                 ),
                 "keyword_column": "keywords",
-                "currency_column": "industry",
+                "currency_column": "currency",
                 "supports_channels": True,
                 "channels": CHANNEL_MAP
             }
+
+            hkstocks_stopwords_path = os.path.join(PROJECT_ROOT, 'src', 'hkstocks_analysis', 'stopwords.txt')
+            hkstocks_stopwords = self._load_stopwords(hkstocks_stopwords_path)
 
             configs["hkstocks"] = {
                 "label": SOURCE_LABEL_MAP["hkstocks"],
@@ -123,7 +139,8 @@ class WebSimilarityAnalyzer:
                     channel_column=None,
                     date_column="publish_date",
                     min_count=2,
-                    top_n=100
+                    top_n=100,
+                    stopwords=hkstocks_stopwords
                 ),
                 "keyword_column": "keywords",
                 "currency_column": "industry",
@@ -287,12 +304,12 @@ async def search_news_get(request: Request, keyword: str = "",
             keyword_heading = f"关键词 “{clean_keyword}”"
             result_summary = f"共 {len(results)} 条结果"
         else:
-            results = engine.get_recent_news(limit=20)
+            results = engine.get_recent_news(limit=50)
             keyword_heading = "最新快讯"
             result_summary = f"展示最新 {len(results)} 条资讯"
 
         for news in results:
-            news['summary'] = engine.generate_summary(news['original_text'])
+            news['summary'] = engine.generate_summary(news['original_text'], news_id=news.get('id'))
 
         _enhance_news_results(results)
 
@@ -390,11 +407,12 @@ async def analyze_data(request: Request):
         currency_counter, currency_occurrence = web_analyzer.count_items_with_occurrence(source_key, currency_rows)
         logger.info(f"✓ 币种种类: {len(currency_counter)}")
 
-        similarity_pairs = web_analyzer.calculate_similarity(source_key, keyword_counter, limit=50)
-        similarity_results = [
-            {'word1': a, 'count1': ca, 'word2': b, 'count2': cb, 'similarity': round(s, 4)}
-            for a, ca, b, cb, s in similarity_pairs
-        ]
+        # similarity_pairs = web_analyzer.calculate_similarity(source_key, keyword_rows, keyword_counter, limit=50)
+        # similarity_results = [
+        #     {'word1': a, 'count1': ca, 'word2': b, 'count2': cb, 'similarity': round(s, 4)}
+        #     for a, ca, b, cb, s in similarity_pairs
+        # ]
+        similarity_results = [] # Disable similarity analysis
 
         keyword_stats = []
         for word, count in keyword_counter.most_common():
@@ -408,13 +426,60 @@ async def analyze_data(request: Request):
             ratio = (occur_count / total_rows * 100) if total_rows > 0 else 0
             currency_stats.append({'word': word, 'count': count, 'occur_count': occur_count, 'ratio': round(ratio, 2)})
 
+        # Determine trend targets based on source
+        trend_targets = []
+        target_column = None
+        
+        # Always use top keywords for trend analysis
+        for item in keyword_stats[:20]:
+             if isinstance(item, dict) and 'word' in item:
+                 trend_targets.append(item['word'])
+        target_column = None # Use default keyword column
+
+        # Fetch trend data
+        trend_data = {}
+        analyzer = web_analyzer._get_analyzer(source_key)
+        if analyzer and trend_targets:
+            try:
+                # Special handling for crypto trend analysis time range
+                actual_time_range = time_range_str
+                if source_key == 'crypto' and not actual_time_range:
+                    latest_date_str = analyzer.get_latest_date()
+                    if latest_date_str:
+                        try:
+                            # Try ISO format first (e.g. 2024-04-09T12:02:53+00:00)
+                            latest_date = datetime.fromisoformat(latest_date_str.replace('Z', '+00:00'))
+                        except:
+                            try:
+                                # Fallback to simple format
+                                latest_date = datetime.strptime(latest_date_str, '%Y-%m-%d %H:%M:%S')
+                            except:
+                                latest_date = None
+                        
+                        if latest_date:
+                            start_date = latest_date - timedelta(days=7)
+                            # Use ISO format for consistency with DB
+                            actual_time_range = [start_date.isoformat(), latest_date.isoformat()]
+                            logger.info(f"   Web3 默认趋势范围: {actual_time_range}")
+
+                trend_data = analyzer.get_top_keywords_trend(
+                    top_keywords=trend_targets,
+                    channel_ids=web_analyzer._sanitize_channels(source_key, channel_ids),
+                    time_range=actual_time_range,
+                    target_column=target_column
+                )
+            except Exception as e:
+                logger.error(f"获取趋势数据失败: {e}")
+
         logger.info("✅ 分析完成\n")
+        # Return the analysis result
         return JSONResponse(content={
             'success': True,
             'total_rows': total_rows,
             'keyword_stats': keyword_stats,
             'currency_stats': currency_stats,
             'similarity_results': similarity_results,
+            'trend_data': trend_data,
             'keyword_total': len(keyword_counter),
             'currency_total': len(currency_counter)
         })
