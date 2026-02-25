@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Alpha Radar{% endblock %}</title>
+    <title>{% block title %}Crypto Insight{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,7 +15,7 @@
         <div class="nav-left">
             <a class="brand" href="/">
                 <span class="brand-mark"></span>
-                <span class="brand-name">Alpha Radar</span>
+                <span class="brand-name">Crypto Insight</span>
             </a>
             <div class="nav-links">
                 <a class="nav-item {% if request.url.path == '/' %}active{% endif %}" href="/">仪表盘</a>
@@ -39,7 +39,7 @@
         {% block content %}{% endblock %}
     </main>
     <footer class="app-footer">
-        <span>© 2025 Alpha Radar · 市场情报工作台</span>
+        <span>© 2025 Crypto Insight · 市场情报工作台</span>
         <span class="footer-links">
             <a href="/analyzer">工作流指南</a>
             <a href="https://www.alternative.me/crypto/fear-and-greed-index/" target="_blank" rel="noopener">情绪指数来源</a>

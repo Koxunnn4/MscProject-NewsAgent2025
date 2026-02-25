@@ -278,7 +278,7 @@ def main():
     parser.add_argument(
         "--db",
         type=str,
-        default="/Users/hk00604ml/cjy/MscProject-NewsAgent2025/testdb_cryptonews.db",
+        default="/Users/hk00604ml/cjy/MscProject-NewsAgent2025/history.db",
         help="数据库路径"
     )
     parser.add_argument(

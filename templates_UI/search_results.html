@@ -21,6 +21,14 @@
     </form>
 </section>
 
+<section id="report-section" class="report-section glass-panel" style="display:none;">
+    <div class="section-header">
+        <h2>📝 新闻分析报告</h2>
+        <small id="report-status">准备就绪</small>
+    </div>
+    <div id="report-body" class="report-body"></div>
+</section>
+
 <section class="search-layout">
     <main>
         <div class="keyword-row">
@@ -107,14 +115,6 @@
             </div>
             <canvas id="trendChart" height="220"></canvas>
         </div>
-
-        <div id="report_card" class="glass-panel side-card" style="display:none;">
-            <div class="card-header">
-                <span>📝 新闻分析报告</span>
-                <small>由选定时间段内新闻生成</small>
-            </div>
-            <div id="report_content" class="report-content"></div>
-        </div>
     </aside>
 </section>
 {% endblock %}
@@ -174,8 +174,9 @@
         const btn = document.getElementById('generate-report-btn');
         if(!btn) return;
         const source = '{{ source }}';
-        const reportCard = document.getElementById('report_card');
-        const reportContent = document.getElementById('report_content');
+        const reportSection = document.getElementById('report-section');
+        const reportBody = document.getElementById('report-body');
+        const reportStatus = document.getElementById('report-status');
 
         const collectTopContext = () => {
             const articles = Array.from(document.querySelectorAll('.news-card')).slice(0, 10);
@@ -190,16 +191,71 @@
             return header + blocks.join('\n');
         };
 
-        const renderReport = (text) => {
-            if(!reportCard || !reportContent) return;
-            reportContent.textContent = text || '暂无内容';
-            reportCard.style.display = '';
+        const setReportVisibility = (visible) => {
+            if(reportSection){
+                reportSection.style.display = visible ? '' : 'none';
+            }
+        };
+
+        const escapeHtml = (str = '') => str
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+
+        const formatReport = (raw = '') => {
+            const tokens = raw.split(/\n+/);
+            const blocks = [];
+            let listBuffer = [];
+            const flushList = () => {
+                if (!listBuffer.length) return;
+                const items = listBuffer.map(item => `<li>${item}</li>`).join('');
+                blocks.push(`<ul>${items}</ul>`);
+                listBuffer = [];
+            };
+            tokens.forEach(line => {
+                const trimmed = line.trim();
+                if (!trimmed) {
+                    flushList();
+                    return;
+                }
+                if (/^[*-]\s+/.test(trimmed)) {
+                    const content = trimmed.replace(/^[*-]\s+/, '');
+                    listBuffer.push(escapeHtml(content));
+                    return;
+                }
+                flushList();
+                if (/^###\s+/.test(trimmed)) {
+                    blocks.push(`<h3>${escapeHtml(trimmed.replace(/^###\s+/, ''))}</h3>`);
+                } else if (/^##\s+/.test(trimmed)) {
+                    blocks.push(`<h2>${escapeHtml(trimmed.replace(/^##\s+/, ''))}</h2>`);
+                } else if (/^#\s+/.test(trimmed)) {
+                    blocks.push(`<h1>${escapeHtml(trimmed.replace(/^#\s+/, ''))}</h1>`);
+                } else {
+                    const withBold = escapeHtml(trimmed).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+                    blocks.push(`<p>${withBold}</p>`);
+                }
+            });
+            flushList();
+            return blocks.join('\n');
+        };
+
+        const renderReport = (text, statusText) => {
+            if(!reportSection || !reportBody) return;
+            setReportVisibility(true);
+            if(reportBody){
+                reportBody.innerHTML = formatReport(text || '暂无内容');
+            }
+            if(reportStatus && statusText){
+                reportStatus.textContent = statusText;
+            }
         };
 
         btn.addEventListener('click', async () => {
             try{
                 const context = collectTopContext();
-                renderReport('正在生成报告，请稍候…');
+                renderReport('正在生成报告，请稍候…', '生成中');
                 const resp = await fetch('/api/generate-report', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -208,10 +264,10 @@
                 if(!resp.ok){ throw new Error('生成报告接口失败'); }
                 const data = await resp.json();
                 const text = data?.report || data?.outputs?.report || JSON.stringify(data);
-                renderReport(text);
+                renderReport(text, '已生成');
             }catch(err){
                 console.error(err);
-                renderReport('生成失败，请稍后重试。');
+                renderReport('生成失败，请稍后重试。', '失败');
             }
         });
     })();

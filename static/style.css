@@ -801,11 +801,16 @@ a:hover {
     margin-bottom: 24px;
 }
 
-.report-content {
+.report-section {
+    margin-bottom: 32px;
+}
+
+.report-body {
     white-space: pre-wrap;
-    color: rgba(226, 232, 240, 0.9);
-    font-size: 0.92rem;
-    line-height: 1.5;
+    color: rgba(226, 232, 240, 0.95);
+    font-size: 0.95rem;
+    line-height: 1.6;
+    min-height: 160px;
 }
 
 .tradingview-frame {

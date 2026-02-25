@@ -65,7 +65,7 @@ ensure_port_free() {
 }
 
 prompt_mode() {
-  echo "================ Alpha Radar 启动助手 ================"
+  echo "================ Crypto Insight 启动助手 ================"
   echo "请选择运行模式："
   echo "  1) 实时采集模式  (默认)"
   echo "     - 启动 Telegram 新闻抓取 & Redis 消费者"
